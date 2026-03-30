@@ -1,152 +1,329 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { getAuth, signOut } from 'firebase/auth';
+import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useUser } from '../../components/UserContext';
+import { app } from '../../constants/firebase';
 export default function MeScreen() {
   const router = useRouter();
   const menuItems = ['จัดการบัญชี', 'รายการที่บันทึกไว้', 'โพสต์ของฉัน', 'การตั้งค่า'];
+  const { user, loading } = useUser();
+  console.log('user photoURL:', user?.photoURL);
+  const [postCount, setPostCount] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
 
+  useFocusEffect(
+  useCallback(() => {
+    if (!user?.uid) return;
+    let ignore = false;
+    const fetchCounts = async () => {
+  try {
+    const db = getFirestore(app);
+    const foundCol = collection(db, `users/${user.uid}/found_posts`);
+    const lostCol = collection(db, `users/${user.uid}/lost_posts`);
+    const savedFoundCol = collection(db, `users/${user.uid}/saved_found`);
+    const savedLostCol = collection(db, `users/${user.uid}/saved_lost`);
+
+    const [foundSnap, lostSnap, savedFoundSnap, savedLostSnap] = await Promise.all([
+      getDocs(foundCol),
+      getDocs(lostCol),
+      getDocs(savedFoundCol),
+      getDocs(savedLostCol),
+    ]);
+
+    if (!ignore) {
+      setPostCount(foundSnap.size + lostSnap.size);
+
+      // ✅ เช็คว่าโพสต์ที่ bookmark ยังมีอยู่ไหม
+      const { getDoc, doc } = await import('firebase/firestore');
+      const checkFound = await Promise.all(savedFoundSnap.docs.map(async d => {
+        const data = d.data();
+        try {
+          const snap = await getDoc(doc(db, 'users', data.userId, 'found_posts', data.postId));
+          return snap.exists();
+        } catch { return false; }
+      }));
+      const checkLost = await Promise.all(savedLostSnap.docs.map(async d => {
+        const data = d.data();
+        try {
+          const snap = await getDoc(doc(db, 'users', data.userId, 'lost_posts', data.postId));
+          return snap.exists();
+        } catch { return false; }
+      }));
+
+      const validSaved = checkFound.filter(Boolean).length + checkLost.filter(Boolean).length;
+      setSavedCount(validSaved); // ✅ นับเฉพาะที่ยังมีอยู่
+    }
+  } catch {
+    if (!ignore) { setPostCount(0); setSavedCount(0); }
+  }
+};
+    fetchCounts();
+    return () => { ignore = true; };
+  }, [user?.uid])
+);
   const handleMenuPress = (item: string) => {
-    if (item === 'จัดการบัญชี') {
-      router.push('/account-settings');
-    } else if (item === 'การตั้งค่า') {
-      router.push('/settings');
-    } else if (item === 'โพสต์ของฉัน') {
-      router.push('/my-posts');
+    if (item === 'จัดการบัญชี') router.push('/account-settings');
+    else if (item === 'การตั้งค่า') router.push('/settings');
+    else if (item === 'โพสต์ของฉัน') router.push('/my-posts');
+    else if (item === 'รายการที่บันทึกไว้') router.push('/saved');
+  };
+
+  // ฟังก์ชัน logout
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth(app);
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      alert('เกิดข้อผิดพลาดในการออกจากระบบ');
     }
   };
 
   return (
-    <View style={styles.container}>
+    
+    <LinearGradient
+      colors={['#FFFAF5', '#FFFAF5']}
+      //colors={['#ffe4be', '#ffffff']}
+      style={styles.container}
+    >
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+      {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.profileRow}>
-          <View style={styles.avatarWrap}>
-            <Image source={require('../../assets/images/icon.png')} style={styles.avatar} />
+          
+          {/* profilepic ตัวอักษร */}
+          <View style={styles.profileRow}>
+            <View style={styles.profilecontain}>
+              {loading ? (
+                <View style={styles.profilepicBox}>
+                  <ActivityIndicator size="small" color="#f8e8dc" />
+                </View>
+              ) : user?.photoURL ? (
+                <Image 
+                  source={{ uri: user.photoURL }} 
+                  style={styles.profilepic}
+                  onError={(e) => console.log('Image error:', e.nativeEvent.error)} 
+                />
+              ) : (
+                <View style={styles.profilepicBox}>
+                  <Text style={styles.profilepicText}>
+                    {user?.username && user.username !== '-' ? user.username[0].toUpperCase() : 'U'}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
+          {/* Info */}
           <View>
-            <Text style={styles.userId}>B6703776</Text>
-            <Pressable style={styles.editRow}>
+            <Text style={styles.userId}>{user?.username ? user.username : "-"}</Text>
+            <Pressable style={styles.editBtn} onPress={() => router.push('/editprofile')}>
               <Text style={styles.editText}>แก้ไขโปรไฟล์</Text>
-              <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="pencil-outline" size={14} color="#6E4D31" />
             </Pressable>
           </View>
         </View>
+
+        {/* STAT CARDS */}
+        <View style={styles.statsRow}>
+          <Pressable style={styles.statCard} onPress={() => router.push('/my-posts')}>
+            <Text style={styles.statNumber}>{postCount}</Text>
+            <Text style={styles.statLabel}>โพสต์ของฉัน</Text>
+          </Pressable>
+          <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
+            <Text style={styles.statNumber}>{savedCount}</Text>
+            <Text style={styles.statLabel}>รายการที่บันทึก</Text>
+          </Pressable>
+        </View>
       </View>
 
+      {/* MENU */}
       <View style={styles.content}>
         <View style={styles.menuCard}>
           {menuItems.map((item, index) => (
             <Pressable
               key={item}
               onPress={() => handleMenuPress(item)}
-              style={[styles.menuItem, index !== menuItems.length - 1 ? styles.menuDivider : undefined]}>
+              style={[
+                styles.menuItem,
+                index !== menuItems.length - 1 && styles.menuDivider,
+              ]}
+            >
               <Text style={styles.menuText}>{item}</Text>
               <Ionicons name="chevron-forward" size={18} color="#6B4D34" />
             </Pressable>
           ))}
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={() => router.replace('/login')}>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
           <Text style={styles.logoutText}>ออกจากระบบ</Text>
         </Pressable>
       </View>
-    </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-    body:{
-         fontFamily: 'NotoSansThai_400Regular'
-    },
-    container: {
+  container: {
     flex: 1,
-    backgroundColor: '#FFFAF3',
-    
   },
+
   header: {
-    backgroundColor: '#fccf87',
-    height: 170,
-    paddingHorizontal: 26,
-    justifyContent: 'flex-end',
-    paddingBottom: 18,
+    padding: 20,
   },
+
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  avatarWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+  profilecontain: { 
+    width: 72, 
+    height: 72, 
+    borderRadius: 36, 
+    backgroundColor: '#FFFFFF', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+  }, 
+  profilepic: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: 40, 
+  },
+  profilepicBox: {
+    width: 70,
+    height: 70,
+    borderRadius: 40,
+    backgroundColor: '#f8e8dc',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+
+  profilepicText: {
+    fontSize: 28,
+    color: '#6E4D31',
+    fontWeight: '700',
   },
+
+  editIcon: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#F4A261',
+    borderRadius: 10,
+    padding: 4,
+  },
+
   userId: {
-    fontFamily: 'NotoSansThai_400Regular',
-    fontSize: 16,
-    lineHeight: 20,
-    color: '#6B3D14',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2d1b10',
   },
-  editRow: {
-    marginTop: 4,
+
+  role: {
+    fontSize: 13,
+    color: '#7a5c3a',
+    marginTop: 2,
+  },
+
+  editBtn: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
   },
+
   editText: {
-    fontFamily: 'NotoSansThai_400Regular',
-    color: '#FFFFFF',
     fontSize: 14,
+    color: '#6E4D31',
+    fontWeight: '600',
   },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+
+  statCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  },
+
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2d1b10',
+  },
+
+  statLabel: {
+    fontSize: 13,
+    color: '#7a5c3a',
+    marginTop: 4,
+  },
+
   content: {
     flex: 1,
-    paddingTop: 8,
+    paddingTop: 10,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
   },
-  menuCard: { 
-    backgroundColor: '#ffffff',
-    fontFamily: 'NotoSansThai_400Regular'
+
+  menuCard: {
+    backgroundColor: '#fff',
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginHorizontal: 10,
   },
+
   menuItem: {
-    height: 68,
-    paddingHorizontal: 24,
+    height: 60,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+
   menuDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: '#B49B83',
+    borderBottomColor: '#eee',
   },
+
   menuText: {
-    fontFamily: 'NotoSansThai_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
     color: '#6B4D34',
     fontWeight: '500',
   },
+
   logoutButton: {
     marginTop: 16,
     marginHorizontal: 18,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   logoutText: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 14,
-    lineHeight: 26,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#6B4D34',
+    color: '#f33939',
   },
 });
-

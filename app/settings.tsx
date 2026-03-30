@@ -1,96 +1,103 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [notification, setNotification] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const [privateProfile, setPrivateProfile] = useState(false);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>การตั้งค่า</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <LinearGradient colors={['#FFFAF5', '#FFFAF5']} style={{ flex: 1 }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-      <View style={styles.content}>
-        <View style={styles.menuCard}>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>การแจ้งเตือน</Text>
-            <Switch style={{ marginTop:10 }}
-              value={notification}
-              onValueChange={setNotification}
-              trackColor={{ false: '#D4D4D4', true: '#81C784' }}
-              thumbColor="#FFFFFF"
-            />
+        {/* 🔥 GLASS HEADER */}
+        <BlurView intensity={60} tint="light" style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={22} color="#6B4D34" />
+          </Pressable>
+
+          <Text style={styles.headerTitle}>การตั้งค่า</Text>
+
+          <View style={{ width: 40 }} />
+        </BlurView>
+
+        {/* CONTENT */}
+        <View style={styles.content}>
+          <View style={styles.menuCard}>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>การแจ้งเตือน</Text>
+              <Switch style={{ marginTop:15 }}
+                value={notification}
+                onValueChange={setNotification}
+                trackColor={{ false: '#E0D5C6', true: '#81C784'}}
+                thumbColor="#ffffff"
+              />
+            </View>
+
           </View>
         </View>
-      </View>
-    </SafeAreaView>
+
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8C46E',
-  },
   header: {
-    backgroundColor: '#F8C46E',
-    height: 70,
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    height: 60,
+
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    overflow: 'hidden',
   },
+
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   headerTitle: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#2d1b10',
   },
+
   content: {
     flex: 1,
-    paddingTop: 8,
-    backgroundColor: '#FFFAF3',
+    marginTop: 20,
+    paddingHorizontal: 16,
   },
+
   menuCard: {
-    backgroundColor: '#ffffff',
-    fontFamily: 'NotoSansThai_400Regular',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
+
   settingRow: {
-    height: 68,
-    paddingHorizontal: 24,
+    height: 60,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical:10,
   },
-  settingRowWithBorder: {
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#B49B83',
-  },
+
   settingLabel: {
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
     color: '#6B4D34',
+    fontWeight: '600',
   },
 });
-

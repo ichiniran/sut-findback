@@ -1,115 +1,142 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 export default function AccountSettingsScreen() {
   const router = useRouter();
+  const [email, setEmail] = useState<string>("");
+
+  useEffect(() => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user && user.email) setEmail(user.email);
+  }, []);
 
   return (
-   <SafeAreaView style={styles.container} edges={['top','bottom']}>
-  <View style={styles.header}>
-    <Pressable onPress={() => router.back()} style={styles.backButton}>
-      <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-    </Pressable>
-    <Text style={styles.headerTitle}>จัดการบัญชี</Text>
-    <View style={{ width: 24 }} />
-  </View>
+    <LinearGradient
+      colors={['#FFFAF5', '#FFFAF5']}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-  <View style={styles.content}>
-    <View style={styles.menuCard}>
-      
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Email</Text>
-        <Text style={styles.fieldValue}>sut1101103@gmail.com</Text>
-      </View>
+        {/* 🔥 GLASS HEADER */}
+        <BlurView intensity={60} tint="light" style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={22} color="#6B4D34" />
+          </Pressable>
 
-      <Pressable 
-        onPress={() => router.push('/change-password')}
-        style={[styles.menuItem, styles.menuDivider]}>
-        <Text style={styles.menuText}>เปลี่ยนรหัสผ่าน</Text>
-        <Ionicons name="chevron-forward" size={18} color="#6B4D34" />
-      </Pressable>
+          <Text style={styles.headerTitle}>จัดการบัญชี</Text>
 
-    </View>
-  </View>
+          <View style={{ width: 40 }} />
+        </BlurView>
 
-  <View style={{ height: 100, backgroundColor: "#FFFAF3" }} />
+        {/* CONTENT */}
+        <View style={styles.content}>
+          <View style={styles.menuCard}>
 
-</SafeAreaView>
+            {/* EMAIL */}
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <Text style={styles.fieldValue}>
+                {email ? email : "-"}
+              </Text>
+            </View>
+
+            {/* CHANGE PASSWORD */}
+            <Pressable
+              onPress={() => router.push('/change-password')}
+              style={styles.menuItem}
+            >
+              <Text style={styles.menuText}>เปลี่ยนรหัสผ่าน</Text>
+              <Ionicons name="chevron-forward" size={18} color="#6B4D34" />
+            </Pressable>
+
+          </View>
+        </View>
+
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8C46E',
-  },
   header: {
-    backgroundColor: '#F8C46E',
-    height: 70,
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    height: 60,
+
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    overflow: 'hidden',
   },
+
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   headerTitle: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#2d1b10',
   },
+
   content: {
     flex: 1,
-    paddingTop: 8,
-    backgroundColor: '#FFFAF3',
+    marginTop: 20,
+    paddingHorizontal: 16,
   },
+
   menuCard: {
-    backgroundColor: '#ffffff',
-    fontFamily: 'NotoSansThai_400Regular',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgb(255, 255, 255)',
   },
-  menuItem: {
-    height: 68,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  menuDivider: {
-    borderTopWidth: 1,
-    borderTopColor: '#B49B83',
-  },
+
   fieldRow: {
-    height: 68,
-    paddingHorizontal: 24,
+    height: 60,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+
     borderBottomWidth: 0.5,
-    borderBottomColor: '#B49B83',
+    borderBottomColor: '#e5d3bd',
   },
+
   fieldLabel: {
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
     color: '#6B4D34',
+    fontWeight: '600',
   },
+
   fieldValue: {
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
-    color: '#6B4D34',
+    color: '#2d1b10',
     fontWeight: '500',
   },
+
+  menuItem: {
+    height: 60,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
   menuText: {
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
-    lineHeight: 22,
     color: '#6B4D34',
     fontWeight: '500',
   },
 });
-

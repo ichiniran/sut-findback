@@ -1,83 +1,151 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { EmailAuthProvider, getAuth, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const [oldPassword, setOldPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("กรุณากรอกข้อมูลให้ครบ");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("รหัสผ่านไม่ตรงกัน");
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert("รหัสผ่านต้องอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        Alert.alert("กรุณาเข้าสู่ระบบใหม่");
+        return;
+      }
+
+      // ✅ Re-authenticate ก่อน
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // แล้วค่อยเปลี่ยนรหัสผ่าน
+      await updatePassword(user, newPassword);
+
+      Alert.alert("สำเร็จ", "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      router.back();
+
+    } catch (error: any) {
+      console.log(error);
+      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        Alert.alert("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+      } else {
+        Alert.alert("เกิดข้อผิดพลาด", error.message);
+      }
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>เปลี่ยนรหัสผ่าน</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <LinearGradient colors={['#FFFAF5', '#FFFAF5']} style={{ flex: 1 }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-      <View style={styles.content}>
-        <View style={styles.menuCard}>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>รหัสผ่านเดิม</Text>
-            <TextInput
-              style={styles.inputField}
-              placeholder="S-รหัสผ่านเดิม"
-              placeholderTextColor="#D4D4D4"
-              secureTextEntry
-              value={oldPassword}
-              onChangeText={setOldPassword}
-            />
+        {/* HEADER */}
+        <BlurView intensity={60} tint="light" style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={22} color="#6B4D34" />
+          </Pressable>
+          <Text style={styles.headerTitle}>เปลี่ยนรหัสผ่าน</Text>
+          <View style={{ width: 40 }} />
+        </BlurView>
+
+        {/* CONTENT */}
+        <View style={styles.content}>
+          <View style={styles.menuCard}>
+
+            {/* รหัสผ่านปัจจุบัน */}
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>รหัสผ่านปัจจุบัน</Text>
+              <TextInput
+                style={styles.inputField}
+                placeholder="กรอกรหัสผ่านปัจจุบัน"
+                placeholderTextColor="#cbb7a0"
+                secureTextEntry
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+              />
+            </View>
+
+            {/* รหัสผ่านใหม่ */}
+            <View style={styles.inputRowWithBorder}>
+              <Text style={styles.inputLabel}>รหัสผ่านใหม่</Text>
+              <TextInput
+                style={styles.inputField}
+                placeholder="กรอกรหัสผ่านใหม่"
+                placeholderTextColor="#cbb7a0"
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+            </View>
+
+            {/* ยืนยันรหัสผ่าน */}
+            <View style={styles.inputRowWithBorder}>
+              <Text style={styles.inputLabel}>ยืนยันรหัสผ่าน</Text>
+              <TextInput
+                style={styles.inputField}
+                placeholder="ยืนยันรหัสผ่านใหม่"
+                placeholderTextColor="#cbb7a0"
+                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+            </View>
+
           </View>
 
-          <View style={styles.inputRowWithBorder}>
-            <Text style={styles.inputLabel}>รหัสผ่านใหม่</Text>
-            <TextInput
-              style={styles.inputField}
-              placeholder="S-รหัสผ่านใหม่"
-              placeholderTextColor="#D4D4D4"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
-          </View>
-
-          <View style={styles.inputRowWithBorder}>
-            <Text style={styles.inputLabel}>ยืนยันรหัสผ่านใหม่</Text>
-            <TextInput
-              style={styles.inputField}
-              placeholder="S-รหัสผ่านใหม่"
-              placeholderTextColor="#D4D4D4"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-          </View>
+          {/* BUTTON */}
+          <Pressable style={{ borderRadius: 16 }} onPress={handleChangePassword}>
+            <LinearGradient
+              colors={['#FFD6A5', '#F4A261']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.submitButton}
+            >
+              <Text style={styles.submitText}>บันทึก</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
 
-        <Pressable style={styles.submitButton}>
-          <Text style={styles.submitText}>บันทึก</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8C46E',
-  },
   header: {
-    backgroundColor: '#F8C46E',
-    height: 70,
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    overflow: 'hidden',
   },
   backButton: {
     width: 40,
@@ -86,64 +154,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#2d1b10',
   },
   content: {
     flex: 1,
-    paddingTop: 8,
-    backgroundColor: '#FFFAF3',
+    marginTop: 20,
+    paddingHorizontal: 16,
   },
   menuCard: {
-    backgroundColor: '#ffffff',
-    fontFamily: 'NotoSansThai_400Regular',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   inputRow: {
-    height: 68,
-    paddingHorizontal: 24,
+    height: 60,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   inputRowWithBorder: {
-    height: 68,
-    paddingHorizontal: 24,
+    height: 60,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#B49B83',
+    borderTopWidth: 0.5,
+    borderTopColor: '#e5d3bd',
   },
   inputLabel: {
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
     color: '#6B4D34',
     flex: 0.4,
   },
   inputField: {
     flex: 0.6,
-    fontFamily: 'NotoSansThai_400Regular',
     fontSize: 14,
-    color: '#6B4D34',
+    color: '#2d1b10',
     textAlign: 'right',
     padding: 0,
   },
   submitButton: {
-    marginTop: 20,
-    marginHorizontal: 18,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#F8C46E',
+    marginTop: 24,
+    height: 50,
+    borderRadius: 16,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   submitText: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#fff',
   },
 });
-

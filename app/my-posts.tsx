@@ -1,135 +1,157 @@
+import { useUser } from '@/components/UserContext';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MyFoundScreen from './myfound';
+import MyLostScreen from './mylost';
 
 export default function MyPostsScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'found' | 'lost'>('found');
-
+  const [activeTab, setActiveTab] = useState<'myfound' | 'mylost'>('myfound');
+  const { user } = useUser();
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+
+      {/* HEADER */}
+      <LinearGradient
+        colors={['#ffffff', '#ffffff']}
+        style={styles.header}
+      >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color="#333" />
         </Pressable>
+
         <Text style={styles.headerTitle}>โพสต์ของฉัน</Text>
-        <View style={{ width: 24 }} />
-      </View>
 
+        <View style={{ width: 40 }} />
+      </LinearGradient>
+    
+      {/* PROFILE */}
       <View style={styles.profileSection}>
-        <View style={styles.avatarWrap}>
-          <Image source={require('../assets/images/icon.png')} style={styles.avatar} />
-        </View>
-        <Text style={styles.userId}>B6703776</Text>
+      <View style={styles.avatarWrap}>
+        {user?.photoURL ? (
+          <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: '#f8e8dc', justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ fontSize: 24, color: '#6E4D31', fontWeight: '700' }}>
+              {user?.username ? user.username[0].toUpperCase() : 'U'}
+            </Text>
+          </View>
+        )}
       </View>
+      <Text style={styles.userId}>{user?.username || '-'}</Text>
+    </View>
 
+      {/* TAB BAR */}
       <View style={styles.tabBar}>
-        <Pressable
-          style={styles.tabItem}
-          onPress={() => setActiveTab('found')}>
-          <Text style={[styles.tabText, activeTab === 'found' && styles.tabTextActive]}>
+        <Pressable style={styles.tabItem} onPress={() => setActiveTab('myfound')}>
+          <Text style={[styles.tabLabel, activeTab === 'myfound' && styles.tabLabelActive]}>
             โพสต์พบของ
           </Text>
-          {activeTab === 'found' && <View style={styles.tabIndicator} />}
+          {activeTab === 'myfound' && <View style={styles.tabIndicator} />}
         </Pressable>
 
-        <Pressable
-          style={styles.tabItem}
-          onPress={() => setActiveTab('lost')}>
-          <Text style={[styles.tabText, activeTab === 'lost' && styles.tabTextActive]}>
+        <Pressable style={styles.tabItem} onPress={() => setActiveTab('mylost')}>
+          <Text style={[styles.tabLabel, activeTab === 'mylost' && styles.tabLabelActive]}>
             โพสต์หาของ
           </Text>
-          {activeTab === 'lost' && <View style={styles.tabIndicator} />}
+          {activeTab === 'mylost' && <View style={styles.tabIndicator} />}
         </Pressable>
       </View>
 
+      {/* CONTENT */}
       <View style={styles.content}>
-        {/* เนื้อหาโพสต์ */}
+         {activeTab === 'myfound' ? <MyFoundScreen /> : <MyLostScreen />}
       </View>
+
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8C46E',
-  },
   header: {
-    backgroundColor: '#F8C46E',
     height: 60,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   headerTitle: {
-    fontFamily: 'NotoSansThai_600SemiBold',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#333',
   },
+
   profileSection: {
-    backgroundColor: '#F8C46E',
     alignItems: 'center',
     paddingVertical: 16,
     gap: 8,
   },
+
   avatarWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFFFFF',
+    width: 70,
+    height: 70,
+    borderRadius: 40,
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 40,
   },
+
   userId: {
-    fontFamily: 'NotoSansThai_700Bold',
-    fontSize: 16,
-    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
   },
+
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#F8C46E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
+
   tabItem: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
   },
-  tabText: {
-    fontFamily: 'NotoSansThai_400Regular',
+
+  tabLabel: {
     fontSize: 15,
-    color: '#FFFFFF99',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-    fontFamily: 'NotoSansThai_600SemiBold',
     fontWeight: '600',
+    color: '#999',
   },
+
+  tabLabelActive: {
+    color: '#F97316',
+  },
+
   tabIndicator: {
     position: 'absolute',
     bottom: 0,
     height: 3,
-    width: '60%',
-    backgroundColor: '#6B3D14',
+    width: '50%',
+    backgroundColor: '#F97316',
     borderRadius: 2,
   },
+
   content: {
     flex: 1,
-    backgroundColor: '#FFFAF3',
+    backgroundColor: '#fff',
   },
 });
-

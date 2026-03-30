@@ -8,8 +8,8 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 
 const ICON_SIZE = {
-  tab: 25,
-  center: 35,
+  tab: 24,
+  center: 32,
 };
 
 
@@ -40,7 +40,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
           const focused = state.index === index;
           const iconName = focused && meta.activeIcon ? meta.activeIcon : meta.icon;
-          const tintColor = meta.center ? '#FFFFFF' : focused ? '#5A2F06' : '#FFF7EC';
+           const tintColor = meta.center ? '#ffffff' : focused ? '#FBAA58' : '#FBAA58';
 
 
           const onPress = () => {
@@ -121,13 +121,13 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   barContainer: {
-    backgroundColor: '#FFF4E6',
+    backgroundColor: '#FFFAF5',
     paddingHorizontal: 0,
     paddingTop: 6,
   },
   bar: {
-    height: 98,
-    backgroundColor: '#F8C46E',
+    height: 90,
+    backgroundColor: 'rgb(255, 255, 255)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     flexDirection: 'row',
@@ -135,6 +135,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 20,
     paddingHorizontal: 0,
+    shadowColor: '#ffa968',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 4,
+    borderColor: '#ffc497',
+    borderWidth: 1,
   },
   tabButton: {
     flex: 1,
@@ -145,14 +152,14 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
   },
   activeLabel: {
-    color: '#6B3C10',
+    color: '#FBAA58',
   },
   inactiveLabel: {
-    color: '#FFF7EC',
+    color: '#FBAA58',
   },
   centerSlot: {
     width: CENTER_BUTTON_SIZE,
@@ -164,18 +171,19 @@ const styles = StyleSheet.create({
     width: CENTER_BUTTON_SIZE,
     height: CENTER_BUTTON_SIZE,
     borderRadius: CENTER_BUTTON_SIZE / 2,
-    backgroundColor: '#F8C46E',
-    borderWidth: 6,
-    borderColor: '#FFF4E6',
+    backgroundColor: '#FBAA58',
+    borderWidth: 4,
+    borderColor: '#FFFAF5',
     alignItems: 'center',
     justifyContent: 'center',
+    
   },
   centerLabel: {
     fontFamily: 'Inter_500Medium',
     marginTop: 4,
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFF7EC',
+    color: '#FBAA58',
   },
 });
 
