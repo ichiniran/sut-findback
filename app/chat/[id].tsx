@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
-  FlatList, Image, KeyboardAvoidingView, Platform,
+  FlatList, Image, Keyboard, KeyboardAvoidingView, Platform,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,6 +84,16 @@ export default function ChatDetail() {
     return () => unsub();
   }, [chatId]);
 
+// เลื่อนหน้าจอเมื่อเปิดคีย์บอร์ด
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+    };
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || !currentUser) return;
@@ -166,7 +176,7 @@ export default function ChatDetail() {
         data={messages}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.messageList}
-       // automaticallyAdjustKeyboardInsets={true}
+        automaticallyAdjustKeyboardInsets={true}
         renderItem={({ item }) => {
   const isMe = item.senderId === currentUser?.uid;
 
