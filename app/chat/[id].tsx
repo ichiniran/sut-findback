@@ -135,7 +135,7 @@ export default function ChatDetail() {
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 
-      // ✅ เพิ่ม unread ให้อีกฝ่าย แยกออกมาต่างหาก
+      // เพิ่ม unread ให้อีกฝ่าย แยกออกมาต่างหาก
       const { increment } = await import('firebase/firestore');
       await setDoc(doc(db, 'chats', chatId), {
         [`unreadCount.${targetUid}`]: increment(1),

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { deleteDoc, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
+import { WebView } from 'react-native-webview';
 // ── UserAvatar: show user photoURL or fallback letter ──
 // Place this at the very end of the file, after all other code
 import BottomSheetMenu from '@/components/BottomSheetMenu';
@@ -286,12 +287,12 @@ const handleChat = () => {
             </>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="image-outline" size={48} color="rgba(63, 63, 63, 0.4)" />
               <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
             </View>
           )}
-          <View style={[styles.badge, { backgroundColor: isFound ? COLORS.primary : '#EF4444' }]}>
-            <Text style={styles.badgeText}>{isFound ? 'พบของ' : 'ของหาย'}</Text>
+          <View style={[styles.badge, { borderColor: isFound ? COLORS.primary : '#EF4444' }]}>
+            <Text style={[styles.badgeText, { color: isFound ? COLORS.primary : '#EF4444' }]}>{isFound ? 'พบของ' : 'ของหาย'}</Text>
           </View>
         </View>
 
@@ -313,7 +314,48 @@ const handleChat = () => {
             <InfoRow icon="calendar-outline" label={isFound ? 'วันที่พบ' : 'วันที่หาย'} value={displayDate} />
             <InfoRow icon="location-outline" label={isFound ? 'สถานที่พบ' : 'สถานที่หาย'} value={displayLocation} sub={locationDetail || undefined} />
             {latitude && longitude ? (
-              <InfoRow icon="navigate-outline" label="พิกัด" value={`${parseFloat(latitude).toFixed(5)}, ${parseFloat(longitude).toFixed(5)}`} />
+              <View style={{ marginHorizontal: 20, marginTop: 8, borderRadius: 12, overflow: 'hidden', height: 200 }}>
+                <WebView
+                  style={{ flex: 1 }}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  scrollEnabled={false}
+                  source={{
+                    html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body { margin: 0; padding: 0; }
+                #map { width: 100%; height: 100vh; }
+              </style>
+            </head>
+            <body>
+              <div id="map"></div>
+              <script>
+                function initMap() {
+                  var pos = { lat: ${parseFloat(latitude)}, lng: ${parseFloat(longitude)} };
+                  var map = new google.maps.Map(document.getElementById('map'), {
+                    center: pos,
+                    zoom: 17,
+                    disableDefaultUI: true,
+                    zoomControl: false,
+                    gestureHandling: 'none',
+                  });
+                  new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                  });
+                }
+              </script>
+              <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQTaITdWwgKSrlTHPunVf5saxtVQdLpCE&callback=initMap" async defer></script>
+            </body>
+            </html>
+                    `
+                  }}
+                />
+              </View>
             ) : null}
 
             {receiveLocation ? (
@@ -349,7 +391,7 @@ const handleChat = () => {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* ✅ Sticky Bottom Buttons */}
+      {/*Sticky Bottom Buttons */}
       <View style={styles.stickyBottom}>
         {isFound ? (
           <>
@@ -406,7 +448,32 @@ const handleChat = () => {
           isOwner={isOwner}
 
           onSave={() => console.log("save")}
-          onEdit={() => console.log("edit")}
+          onEdit={() => {
+              setMenuVisible(false);
+              const targetPath = isFound ? '../post-found' : '../post-lost';
+              router.push({
+                pathname: targetPath,
+                params: {
+                  mode: 'edit',
+                  postId,
+                  userId,
+                  type,
+                  title,        
+                  category,
+                  detail,
+                  location,
+                  locationName,
+                  locationDetail,
+                  receiveLocation,
+                  images,
+                  imageUri,
+                  locationImage,
+                  date,
+                  latitude,
+                  longitude,
+                },
+              });
+            }}
           onDelete={async () => {
             if (!postId || !userId) return;
             Alert.alert(
@@ -536,13 +603,13 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: COLORS.bg },
 
   imageBox: { width: '100%', height: 300, backgroundColor: '#ffffff', position: 'relative' },
-  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  noImageText: { color: 'rgba(255,255,255,0.4)', marginTop: 8, fontSize: 13 },
+  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' },
+  noImageText: { color: 'rgba(33, 26, 26, 0.52)', marginTop: 8, fontSize: 13 },
   badge: {
-    position: 'absolute', top: 14, right: 14,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    position: 'absolute', top: 14, right: 14,backgroundColor: '#ffffff91',
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 2
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  badgeText: { fontSize: 12, fontWeight: '600' },
   dots: {
     position: 'absolute', bottom: 12,
     left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6,

@@ -5,9 +5,7 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getFirestore, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { app } from '../../constants/firebase';
-
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -18,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { app } from '../../constants/firebase';
 
 const LOCATIONS = [
   'อาคารเรียนรวม 1', 'อาคารเรียนรวม 2', 'อาคารเรียนรวม 3',
@@ -59,7 +59,9 @@ export default function PostLostScreen() {
   const [markerCoord, setMarkerCoord] = useState<{ latitude: number; longitude: number } | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-
+  const scrollRef = useRef<ScrollView>(null);
+  const [mapScrollLocked, setMapScrollLocked] = useState(false);
+  const searchTimeout = useRef<any>(null);
   useEffect(() => {
   if (isEdit) {
     setCategory(params.category as string || '');
@@ -75,8 +77,21 @@ export default function PostLostScreen() {
         setImages([params.images as string]);
       }
     }
-  }
-}, []);
+  }else {
+       setImages([]);
+       setCategory('');
+        setOtherCategory('');
+        setDetail('');
+        setLocation('');
+        setLocationDetail('');
+        setMapSearch('');
+        setDate(todayFormatted());
+        setMarkerCoord(null);
+        setSearchResults([]);
+        setConfirmed(false);
+    }
+    
+}, [isEdit]);
   // Auto-format วันที่ (เติม / อัตโนมัติ)
   const handleDateChange = (text: string) => {
     const digits = text.replace(/\D/g, '');
@@ -98,19 +113,20 @@ export default function PostLostScreen() {
   };
 
   // ค้นหาสถานที่ด้วย Nominatim
-  const searchPlace = async () => {
-    if (!mapSearch.trim()) return;
-    setConfirmed(false);
-    const coords = await getUserLocation();
-    const lat = coords?.latitude ?? 14.8800;
-    const lon = coords?.longitude ?? 102.0200;
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(mapSearch)}&format=json&limit=5&viewbox=${lon - 0.1},${lat + 0.1},${lon + 0.1},${lat - 0.1}&bounded=0`;
-    const res = await fetch(url, {
-      headers: { 'Accept-Language': 'th', 'User-Agent': 'SUT-FindBack-App' },
-    });
-    const data = await res.json();
-    setSearchResults(data);
-  };
+ const searchPlace = async (query?: string) => {
+  const q = query ?? mapSearch;
+  if (!q.trim()) return;
+  setConfirmed(false);
+  const coords = await getUserLocation();
+  const lat = coords?.latitude ?? 14.8800;
+  const lon = coords?.longitude ?? 102.0200;
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&viewbox=${lon - 0.1},${lat + 0.1},${lon + 0.1},${lat - 0.1}&bounded=0`;
+  const res = await fetch(url, {
+    headers: { 'Accept-Language': 'th', 'User-Agent': 'SUT-FindBack-App' },
+  });
+  const data = await res.json();
+  setSearchResults(data);
+};
 
   // เลือกผลลัพธ์การค้นหา
   const selectPlace = (place: any) => {
@@ -160,41 +176,71 @@ export default function PostLostScreen() {
   // const pickLocationImage = ... // ไม่ใช้ในโพสต์หาของ
 
   const handlePost = async () => {
-    // 🔥 ถ้าเป็น EDIT
-    if (isEdit) {
-      try {
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const user = auth.currentUser;
+    // EDIT
+      if (isEdit) {
+  console.log('=== EDIT MODE ===');
+  console.log('postId:', postId);
+  console.log('user:', getAuth(app).currentUser?.uid);
+  
+  try {
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const user = auth.currentUser;
 
-        if (!user || !postId) {
-          Alert.alert('ไม่พบข้อมูลโพสต์');
-          return;
-        }
-
-        await setDoc(
-          doc(db, 'users', user.uid, 'lost_posts', postId),
-          {
-            category,
-            detail,
-            location,
-            locationDetail,
-            date,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-
-        Alert.alert('แก้ไขสำเร็จ');
-
-        router.back(); // กลับหน้าเดิม
-      } catch (e) {
-        console.log(e);
-        Alert.alert('แก้ไขไม่สำเร็จ');
-      }
-
-      return; // ❗ สำคัญ ต้อง return
+    if (!user || !postId) {
+      console.log('❌ no user or postId');
+      Alert.alert('ไม่พบข้อมูลโพสต์');
+      return;
     }
+
+    setUploading(true);
+    console.log('uploading...');
+
+    const uploadToCloudinary = async (localUri: string): Promise<string> => {
+      if (localUri.startsWith('http')) return localUri;
+      const formData = new FormData();
+      const ext = localUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = ext === 'png' ? 'image/png' : ext === 'heic' ? 'image/heic' : 'image/jpeg';
+      formData.append('file', { uri: localUri, type: mimeType, name: `photo.${ext}` } as any);
+      formData.append('upload_preset', 'nxbvgcct');
+      formData.append('cloud_name', 'dto2v8z6t');
+      const res = await fetch('https://api.cloudinary.com/v1_1/dto2v8z6t/image/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      console.log('cloudinary result:', data.secure_url);
+      return data.secure_url;
+    };
+
+    const uploadedImages = await Promise.all(images.map(uploadToCloudinary));
+    console.log('✅ images uploaded:', uploadedImages);
+
+    await setDoc(
+      doc(db, 'users', user.uid, 'lost_posts', postId),
+      { category, detail, location, locationDetail, date, images: uploadedImages, updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
+    console.log('✅ firestore saved');
+
+  } catch (e) {
+    console.log('❌ ERROR:', e);
+    Alert.alert('แก้ไขไม่สำเร็จ');
+    setUploading(false);
+    return;
+  }
+
+      console.log('✅ navigating...');
+      setUploading(false);
+      Alert.alert('แก้ไขสำเร็จ', 'บันทึกการแก้ไขเรียบร้อยแล้ว', [
+        {
+          text: 'OK',
+          onPress: () => router.replace({ pathname: '/(tabs)', params: { tab: 'lost' } }),
+        },
+      ]);
+      return;
+}
+
+
+
+
     // ตรวจสอบประเภทสิ่งของ
     let finalCategory = category;
     if (category === 'อื่น ๆ') {
@@ -259,7 +305,7 @@ export default function PostLostScreen() {
       const uploadedImages = await Promise.all(images.map(uri => uploadToCloudinary(uri)));
 
       const postData = {
-        images: uploadedImages, // ✅ https URL
+        images: uploadedImages,
         category: finalCategory,
         detail,
         date,
@@ -299,21 +345,35 @@ export default function PostLostScreen() {
       console.log('ERROR:', e);
       Alert.alert('เกิดข้อผิดพลาดในการบันทึกโพสต์', 'ไม่สามารถบันทึกข้อมูลได้');
     } finally {
-      setUploading(false); // ✅ จบ loading เสมอ
+      setUploading(false); 
     }
   };
-
+  const resetForm = () => {
+  setImages([]);
+  setCategory('');
+  setOtherCategory('');
+  setDetail('');
+  setLocation('');
+  setShowCategoryDD(false);
+  setShowLocationDD(false);
+  setLocationDetail('');
+  setMapSearch('');
+  setDate(todayFormatted());
+  setMarkerCoord(null);
+  setSearchResults([]);
+  setConfirmed(false);
+};
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFAF5' }}>
       <LinearGradient colors={['#FFBB6B', '#F97316']} style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/post')} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+        <TouchableOpacity onPress={() => { resetForm();  router.replace('/post');  }} style={styles.backBtn} >
+                  <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>แจ้งของหาย</Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false} key={isEdit ? 'edit' : 'create'} scrollEnabled={!mapScrollLocked} >
 
         {/* รูปสิ่งของ */}
         <Text style={styles.label}>อัปโหลดรูปสิ่งของ</Text>
@@ -405,77 +465,148 @@ export default function PostLostScreen() {
         )}
 
         {/* ค้นหาสถานที่ ถ้าเลือก อื่น ๆ */}
-        {location === 'อื่น ๆ' && (
-          <>
-            <Text style={styles.label}>ค้นหาสถานที่</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={{ flex: 1, fontSize: 14, color: '#333' }}
-                placeholder="พิมพ์ชื่อสถานที่"
-                placeholderTextColor="#bbb"
-                value={mapSearch}
-                onChangeText={setMapSearch}
-                onSubmitEditing={searchPlace}
+               {location === 'อื่น ๆ' && (
+            <>
+              <Text style={styles.label}>ค้นหาสถานที่</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={{ flex: 1, fontSize: 14, color: '#333' }}
+                  placeholder="พิมพ์ชื่อสถานที่"
+                  placeholderTextColor="#bbb"
+                  value={mapSearch}
+                  onChangeText={(text) => {
+                  setMapSearch(text);
+                  setConfirmed(false);
+
+                  // ✅ debounce 500ms
+                  if (searchTimeout.current) clearTimeout(searchTimeout.current);
+                  if (text.trim().length < 2) {
+                    setSearchResults([]);
+                    return;
+                  }
+                  searchTimeout.current = setTimeout(() => {
+                    searchPlace(text); // ส่ง text เข้าไปตรงๆ
+                  }, 500);
+                }}
+                onSubmitEditing={() => searchPlace(mapSearch)}
                 returnKeyType="search"
               />
-              <TouchableOpacity onPress={searchPlace}>
-                <Ionicons name="search" size={20} color="#FBAA58" />
-              </TouchableOpacity>
-            </View>
-
-            {/* ผลการค้นหา */}
-            {searchResults.length > 0 && (
-              <View style={styles.searchResultBox}>
-                {searchResults.map((place, i) => (
-                  <TouchableOpacity key={i} style={styles.searchResultItem} onPress={() => selectPlace(place)}>
-                    <Ionicons name="location-outline" size={16} color="#FBAA58" />
-                    <Text style={styles.searchResultText} numberOfLines={2}>
-                      {place.display_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* placeholder แผนที่ — จะเพิ่ม MapView จริงตอน build */}
-            {markerCoord && (
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="map-outline" size={32} color="#FBAA58" />
-                <Text style={styles.mapPlaceholderText}>แผนที่จะแสดงหลัง build จริงค่ะ</Text>
-                <Text style={styles.coordText}>
-                  📍 {markerCoord.latitude.toFixed(5)}, {markerCoord.longitude.toFixed(5)}
-                </Text>
-              </View>
-            )}
-
-            {/* ปุ่มยืนยันจุด */}
-            {markerCoord && !confirmed && (
-              <TouchableOpacity onPress={handleConfirmLocation} activeOpacity={0.85}>
-                <LinearGradient
-                  colors={['#FFBB6B', '#F97316']}
-                  style={styles.confirmBtn}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                  <Text style={styles.confirmBtnText}>ยืนยันจุดนี้</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-
-            {/* badge ยืนยันแล้ว */}
-            {confirmed && (
-              <View style={styles.confirmedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                <Text style={styles.confirmedText}>
-                  ยืนยันจุดแล้ว · {markerCoord?.latitude.toFixed(5)}, {markerCoord?.longitude.toFixed(5)}
-                </Text>
-                <TouchableOpacity onPress={() => setConfirmed(false)}>
-                  <Text style={styles.reSelectText}>เปลี่ยน</Text>
+                <TouchableOpacity onPress={() => searchPlace(mapSearch)}>
+                  <Ionicons name="search" size={20} color="#FBAA58" />
                 </TouchableOpacity>
               </View>
-            )}
-          </>
-        )}
+
+              {/* ผลการค้นหา */}
+              {searchResults.length > 0 && (
+                <View style={styles.searchResultBox}>
+                  {searchResults.map((place, i) => (
+                    <TouchableOpacity key={i} style={styles.searchResultItem} onPress={() => selectPlace(place)}>
+                      <Ionicons name="location-outline" size={16} color="#FBAA58" />
+                      <Text style={styles.searchResultText} numberOfLines={2}>
+                        {place.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* แผนที่ WebView */}
+              {markerCoord && (
+                <View style={{ height: 260, borderRadius: 12, overflow: 'hidden', marginTop: 10 }}>
+                <WebView
+                  style={{ flex: 1 }}
+                  onMessage={(e) => {
+                    const { lat, lon } = JSON.parse(e.nativeEvent.data);
+                    setMarkerCoord({ latitude: lat, longitude: lon });
+                    setConfirmed(false);
+                  }}
+                  onTouchStart={() => setMapScrollLocked(true)}
+                  onTouchEnd={() => setMapScrollLocked(false)}
+                  onTouchCancel={() => setMapScrollLocked(false)}
+                  source={{
+                    html: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                  body { margin: 0; padding: 0; }
+                  #map { width: 100%; height: 100vh; }
+                  .drag-hint {
+                    position: absolute; bottom: 10px; left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.55); color: #fff;
+                    font-size: 12px; padding: 4px 12px;
+                    border-radius: 20px; z-index: 999; white-space: nowrap;
+                  }
+                </style>
+              </head>
+              <body>
+                <div id="map"></div>
+                <div class="drag-hint">ลากหมุดเพื่อปรับตำแหน่ง</div>
+                <script>
+                  function initMap() {
+                    var pos = { lat: ${markerCoord.latitude}, lng: ${markerCoord.longitude} };
+                    var map = new google.maps.Map(document.getElementById('map'), {
+                      center: pos,
+                      zoom: 17,
+                      disableDefaultUI: true,
+                      zoomControl: true,
+                    });
+                    var marker = new google.maps.Marker({
+                      position: pos,
+                      map: map,
+                      draggable: true,
+                    });
+                    marker.addListener('dragend', function() {
+                      var p = marker.getPosition();
+                      window.ReactNativeWebView.postMessage(
+                        JSON.stringify({ lat: p.lat(), lon: p.lng() })
+                      );
+                    });
+                  }
+                </script>
+                <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQTaITdWwgKSrlTHPunVf5saxtVQdLpCE&callback=initMap" async defer></script>
+              </body>
+              </html>
+                    `
+                  }}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  scrollEnabled={false}
+                />
+              </View>
+              )}
+
+              {/* ปุ่มยืนยันจุด */}
+              {markerCoord && !confirmed && (
+                <TouchableOpacity onPress={handleConfirmLocation} activeOpacity={0.85}>
+                  <LinearGradient
+                    colors={['#FFBB6B', '#F97316']}
+                    style={styles.confirmBtn}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                    <Text style={styles.confirmBtnText}>ยืนยันจุดนี้</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {/* badge ยืนยันแล้ว */}
+              {confirmed && (
+                <View style={styles.confirmedBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                  <Text style={styles.confirmedText}>
+                    ยืนยันจุดแล้ว · {markerCoord?.latitude.toFixed(5)}, {markerCoord?.longitude.toFixed(5)}
+                  </Text>
+                  <TouchableOpacity onPress={() => setConfirmed(false)}>
+                    <Text style={styles.reSelectText}>เปลี่ยน</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+
 
         {/* รายละเอียดสถานที่ */}
         <Text style={styles.label}>รายละเอียดสถานที่</Text>
@@ -503,9 +634,12 @@ export default function PostLostScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-        <TouchableOpacity style={styles.btnDraft}>
-          <Text style={styles.btnDraftText}>บันทึกแบบร่าง</Text>
-        </TouchableOpacity>
+          <TouchableOpacity  style={styles.btnDraft}  onPress={() => {
+                    resetForm();
+                    router.replace('/post');
+                  }} >
+                  <Text style={styles.btnDraftText}>ยกเลิก</Text>
+                  </TouchableOpacity>
 
       </ScrollView>
     </View>

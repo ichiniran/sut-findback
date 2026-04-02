@@ -2,19 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 export default function PostScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+   
       <LinearGradient
         colors={['#FFFAF5', '#FFFAF5']}
         style={styles.header}
       >
         <Image
                   source={require('../../assets/images/logo_sutfindback.png')}
-                  style={{ width: 200, height: 80 , marginTop: 20}}
+                  style={{ width: 200, height: 80 , }}
                   resizeMode="contain"
                 />
         
@@ -45,15 +46,16 @@ export default function PostScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFAF5' },
   header: {
-    paddingTop: 80,
-    paddingBottom: 30,
+    paddingTop: 40,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   title: { fontSize: 26, fontWeight: '700', color: '#5A4633' },

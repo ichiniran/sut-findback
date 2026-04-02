@@ -99,7 +99,7 @@ export default function LostScreen({
           date: d.date || (d.createdAt ? d.createdAt.split('T')[0] : '-'),
           createdAt: d.createdAt || '',
           images: imageArr,
-          image: imageArr.length > 0 ? { uri: imageArr[0] } : require('../../assets/images/android-icon-background.png'),
+          image: imageArr.length > 0 ? { uri: imageArr[0] } : require('../../assets/images/noimage.png'),
           locationImage: d.locationImage || '',
           category: d.category || '',
           latitude: d.latitude,

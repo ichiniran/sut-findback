@@ -27,7 +27,7 @@ export interface FoundPost {
   currentStatus: string;
 }
 
-const PLACEHOLDER = require('../../assets/images/android-icon-background.png');
+const PLACEHOLDER = require('../../assets/images/noimage.png');
 
 export default function FoundScreen({ searchQuery = '', filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' } }: { searchQuery?: string; filters: FilterOptions }) {
   const [posts, setPosts] = useState<FoundPost[]>([]);
