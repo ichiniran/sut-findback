@@ -3,73 +3,131 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 export default function PostScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-   
-      <LinearGradient
-        colors={['#FFFAF5', '#FFFAF5']}
-        style={styles.header}
-      >
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+
+      
+      <View style={styles.header}>
         <Image
-                  source={require('../../assets/images/logo_sutfindback.png')}
-                  style={{ width: 200, height: 80 , }}
-                  resizeMode="contain"
-                />
-        
-      </LinearGradient>
-
-      <View style={styles.cards}>
-        <TouchableOpacity
-          style={styles.cardShadow}
-          onPress={() => router.push('/(tabs)/post-found' as any)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={['#FFBB6B', '#F97316']} style={styles.card}>
-            <Ionicons name="search" size={44} color="#fff" />
-            <Text style={styles.cardTitle}>แจ้งพบของ</Text>
-            <Text style={styles.cardDesc}>พบของที่ไม่ใช่ของตัวเอง{'\n'}ต้องการแจ้งให้เจ้าของทราบ</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.cardShadow}
-          onPress={() => router.push('/(tabs)/post-lost' as any)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={['#FFD9B8', '#FFAA60']} style={styles.card}>
-            <Ionicons name="alert-circle-outline" size={44} color="#fff" />
-            <Text style={styles.cardTitle}>แจ้งของหาย</Text>
-            <Text style={styles.cardDesc}>ทำของหายและต้องการ{'\n'}ความช่วยเหลือในการค้นหา</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          source={require('../../assets/images/logo_sutfindback.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </View>
-    
+
+     
+      <View style={styles.centerContent}>
+
+        <View style={styles.row}>
+
+          {/* FOUND */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => router.push('/PostForm?type=found' as any)}
+          >
+            <LinearGradient
+              colors={['#ffffff', '#ffffff']}
+              style={styles.cardInner}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="search" size={28} color="#F97316" />
+              </View>
+              <Text style={styles.title}>แจ้งพบของ</Text>
+              <Text style={styles.desc}>ช่วยตามหาเจ้าของ</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* LOST */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => router.push('/PostForm?type=lost' as any)}
+          >
+            <LinearGradient
+              colors={['#ffffff', '#ffffff']}
+              style={styles.cardInner}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="alert-circle" size={28} color="#F97316" />
+              </View>
+              <Text style={styles.title}>แจ้งของหาย</Text>
+              <Text style={styles.desc}>ตามหาของที่หาย</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+        </View>
+
+      </View>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFAF5' },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFAF5',
+  },
+
   header: {
-    paddingTop: 40,
-    paddingBottom: 20,
     alignItems: 'center',
+    paddingTop: 50,  
   },
-  title: { fontSize: 26, fontWeight: '700', color: '#5A4633' },
-  sub: { fontSize: 14, color: '#999', marginTop: 6 },
-  cards: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 16 },
-  cardShadow: {
-    borderRadius: 20,
-    elevation: 5,
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+
+  logo: {
+    width: 200,
+    height: 80,
+  },
+
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: -40,
+  },
+
+  row: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+
+  card: {
+    flex: 1,
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
     shadowRadius: 10,
+    elevation: 4,
   },
-  card: { borderRadius: 20, padding: 28, alignItems: 'center', gap: 10 },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  cardDesc: { fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 20 },
+
+  cardInner: {
+    borderRadius: 22,
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  iconBox: {
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 6,
+  },
+
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+
+  desc: {
+    fontSize: 12,
+    color: '#888',
+  },
 });

@@ -1,15 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import FoundScreen from './found';
 import LostScreen from './lost';
+
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<'found' | 'lost'>('found');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({ category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' });
+  const params = useLocalSearchParams();
+
+  useEffect(() => {
+    if (params.fromTab === 'found') {
+      setActiveTab('found');
+    } else if (params.fromTab === 'lost') {
+      setActiveTab('lost');
+    }
+  }, [params.fromTab]);
+
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -49,6 +61,7 @@ export default function HomeScreen() {
         <Ionicons name="search" size={20} color="#999" />
         <TextInput
           placeholder="ค้นหา"
+          placeholderTextColor="#999" 
           style={{ flex: 1, marginHorizontal: 10 , color: "#323232" }}
           value={searchQuery}
           onChangeText={setSearchQuery}

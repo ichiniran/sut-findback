@@ -54,11 +54,12 @@ export default function PostCard(props: PostCardProps) {
 
   const handlePress = () => {
     router.push({
-      pathname: '/post-detail',
+      pathname: '/PostDetail',
       params: {
         postId: postId || '',
         userId: userId || '',
         type,
+        fromTab: type,
         title: title || '',
         detail: detail || desc || '',
         location: location || '',

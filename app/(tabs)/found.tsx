@@ -1,12 +1,12 @@
 import { useFocusEffect } from 'expo-router';
-import { collection, collectionGroup, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, getDocs, getFirestore, orderBy, query, where } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { FlatList } from 'react-native';
 import { FilterOptions } from '../../components/FilterModal';
 import PostCard from '../../components/PostCard';
 import { app } from '../../constants/firebase';
 
-export interface FoundPost {
+export interface Post {
   id: string;
   userId: string;
   title: string;
@@ -20,7 +20,7 @@ export interface FoundPost {
   createdAt: string;
   images: string[];
   image: { uri: string } | number;
-  locationImage: string;   // รูปจุดฝาก
+  locationImage: string;
   category: string;
   latitude?: number;
   longitude?: number;
@@ -29,87 +29,94 @@ export interface FoundPost {
 
 const PLACEHOLDER = require('../../assets/images/noimage.png');
 
-export default function FoundScreen({ searchQuery = '', filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' } }: { searchQuery?: string; filters: FilterOptions }) {
-  const [posts, setPosts] = useState<FoundPost[]>([]);
-   const filteredPosts = posts.filter(post => {
+const STANDARD_CATEGORIES = [
+  'กระเป๋า / กระเป๋าสตางค์', 'บัตรนักศึกษา / บัตรประชาชน',
+  'โทรศัพท์ / อุปกรณ์อิเล็กทรอนิกส์', 'เงิน', 'กุญแจ', 'เครื่องประดับ', 'เสื้อผ้า',
+];
+const STANDARD_LOCATIONS = [
+  'อาคารเรียนรวม 1', 'อาคารเรียนรวม 2', 'อาคารเรียนรวม 3',
+  'อาคารรัฐสีมาคุณากร', 'หอพักนักศึกษา', 'โรงอาหาร',
+];
+
+export default function FoundScreen({
+  searchQuery = '',
+  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' },
+}: {
+  searchQuery?: string;
+  filters: FilterOptions;
+}) {
+  const [posts, setPosts] = useState<Post[]>([]);
+
+  const filteredPosts = posts.filter(post => {
     const matchSearch =
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.detail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.locationName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchCategory = filters.category === 'ทั้งหมด' || filters.category === 'อื่น ๆ'
-      ? filters.category === 'อื่น ๆ'
-        ? !['กระเป๋า / กระเป๋าสตางค์','บัตรนักศึกษา / บัตรประชาชน','โทรศัพท์ / อุปกรณ์อิเล็กทรอนิกส์','เงิน','กุญแจ','เครื่องประดับ','เสื้อผ้า'].includes(post.category)
-        : true
+    const matchCategory =
+      filters.category === 'ทั้งหมด' ? true
+      : filters.category === 'อื่น ๆ' ? !STANDARD_CATEGORIES.includes(post.category)
       : post.category === filters.category;
 
-    const matchLocation = filters.location === 'ทั้งหมด' || filters.location === 'อื่น ๆ'
-      ? filters.location === 'อื่น ๆ'
-        ? !['อาคารเรียนรวม 1','อาคารเรียนรวม 2','อาคารเรียนรวม 3','อาคารรัฐสีมาคุณากร','หอพักนักศึกษา','โรงอาหาร'].includes(post.locationName)
-        : true
+    const matchLocation =
+      filters.location === 'ทั้งหมด' ? true
+      : filters.location === 'อื่น ๆ' ? !STANDARD_LOCATIONS.includes(post.locationName)
       : post.locationName === filters.location;
 
     return matchSearch && matchCategory && matchLocation;
   });
+
   useFocusEffect(
-  useCallback(() => {
-    const fetchPosts = async () => {
-      try {
-        const db = getFirestore(app);
-        
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const userMap: Record<string, string> = {};
-        usersSnap.forEach(doc => {
-          const d = doc.data();
-          userMap[doc.id] = d.username || d.email || '-';
-        });
+    useCallback(() => {
+      const fetchPosts = async () => {
+        try {
+          const db = getFirestore(app);
 
-        const snap = await getDocs(collectionGroup(db, 'found_posts'));
+          // flat collection
+          const snap = await getDocs(
+            query(
+              collection(db, 'posts'),
+              where('type', '==', 'found'),
+              where('status', '==', 'waiting'),
+              orderBy('createdAt', 'desc'),
+            )
+          );
 
-        const data: FoundPost[] = snap.docs.map(docSnap => {
-          const d = docSnap.data();
+          const data: Post[] = snap.docs.map(docSnap => {
+            const d = docSnap.data();
+            const imageArr: string[] = Array.isArray(d.images) ? d.images : [];
+            return {
+              id: docSnap.id,
+              userId: d.userId || '-',
+              title: d.category || '-',
+              detail: d.detail || '-',
+              location: d.location || '-',
+              locationName: d.locationName || d.location || '-',
+              locationDetail: d.locationDetail || '',
+              receiveLocation: d.receiveLocation || '',
+              username: d.username || '-',   // denormalized ไม่ต้อง fetch แยก
+              date: d.date || (d.createdAt ? d.createdAt.split('T')[0] : '-'),
+              createdAt: d.createdAt || '',
+              images: imageArr,
+              image: imageArr.length > 0 ? { uri: imageArr[0] } : PLACEHOLDER,
+              locationImage: d.locationImage || '',
+              category: d.category || '',
+              latitude: d.latitude,
+              longitude: d.longitude,
+              currentStatus: d.status || 'waiting',
+            };
+          });
 
-          let uid = '-';
-          const segments = docSnap.ref.path.split('/');
-          const usersIdx = segments.indexOf('users');
-          if (usersIdx !== -1 && segments.length > usersIdx + 1) {
-            uid = segments[usersIdx + 1];
-          }
+          setPosts(data);
+        } catch (e) {
+          console.log('FIRESTORE ERROR found:', e)
+          setPosts([]);
+        }
+      };
 
-          const imageArr: string[] = Array.isArray(d.images) ? d.images : [];
-
-          return {
-            id: docSnap.id,
-            userId: uid,
-            title: d.category || d.title || '-',
-            detail: d.detail || '-',
-            location: d.location || '-',
-            locationName: d.locationName || d.location || '-',
-            locationDetail: d.locationDetail || '',
-            receiveLocation: d.receiveLocation || '',
-            username: userMap[uid] || '-',
-            date: d.date || (d.createdAt ? d.createdAt.split('T')[0] : '-'),
-            createdAt: d.createdAt || '',
-            images: imageArr,
-            image: imageArr.length > 0 ? { uri: imageArr[0] } : PLACEHOLDER,
-            locationImage: d.locationImage || '',
-            category: d.category || '',
-            latitude: d.latitude,
-            longitude: d.longitude,
-            currentStatus: d.status || 'waiting',
-          };
-        })
-        .filter(post => post.currentStatus === 'waiting');
-
-        setPosts(data);
-      } catch {
-        setPosts([]);
-      }
-    };
-
-    fetchPosts();
-  }, [])
-);
+      fetchPosts();
+    }, [])
+  );
 
   return (
     <FlatList

@@ -7,7 +7,7 @@ import * as WebBrowser from "expo-web-browser";
 import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { doc, getFirestore, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 import { app } from "../constants/firebase";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -84,7 +84,7 @@ const handleRegister = async () => {
 };
   return (
     <LinearGradient
-      colors={["#FFFAF5", "#ffdcbb"]}
+       colors={["#FFFAF5", "#ffe6d0"]}
       style={styles.container}
     >
       {/* Logo */}
@@ -95,8 +95,8 @@ const handleRegister = async () => {
           resizeMode="contain"
         />
       </View>
-
-      {/* Content */}
+    {/* Content */}
+      {Platform.OS === "ios" ? (
        <BlurView intensity={25} tint="light" style={styles.card}>
         <Text style={styles.title}>Sign up</Text>
 
@@ -138,6 +138,49 @@ const handleRegister = async () => {
           </Text>
         </Text>
        </BlurView >
+       ) : (
+        <View style={styles.cardand}>
+        <Text style={styles.title}>Sign up</Text>
+
+        <TextInput placeholder="Username" placeholderTextColor="#777" style={styles.input} autoCapitalize="none"  onChangeText={setUsername}/>
+        <TextInput placeholder="Email" placeholderTextColor="#777" style={styles.input} autoCapitalize="none" onChangeText={setEmail} />
+        <TextInput placeholder="Password" placeholderTextColor="#777" secureTextEntry style={styles.input} onChangeText={setPassword} />
+        <TextInput placeholder="Confirm Password" placeholderTextColor="#777" secureTextEntry style={styles.input} onChangeText={setConfirmPassword} />
+
+        <TouchableOpacity style={styles.loginButton} onPress={handleRegister}>
+          <Text style={styles.loginText}>Register</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dividerContainer}>
+          <View style={styles.line}/>
+          <Text style={styles.dividerText}>Or Sign up with</Text>
+          <View style={styles.line}/>
+        </View>
+
+        <View style={styles.social}>
+               
+               {/* Google */}
+               <TouchableOpacity style={styles.socialBtn} onPress={() => promptAsync()}>
+               <Image
+                 source={require('../assets/images/google.png')} 
+                 style={{ width: 24, height: 24 }}
+                 resizeMode="contain"
+               />
+             </TouchableOpacity>
+       
+               {/* Apple */}
+               <TouchableOpacity style={styles.socialBtn}>
+                 <FontAwesome name="apple" size={24} color="black" />
+               </TouchableOpacity>
+        </View>
+        <Text style={styles.register}>
+          Already have an account?{' '}
+          <Text style={styles.create} onPress={() => router.replace("/login")}> 
+            Login
+          </Text>
+        </Text>
+       </View >
+       )}
     </LinearGradient>
   );
 }
@@ -235,12 +278,12 @@ const styles = StyleSheet.create({
     color:"#fff"
   },
 
-  register:{
-    marginTop:20,
-    textAlign:"center",
-    fontSize:13,
-    color:"#5A4633",
-
+  register: {
+    marginTop: 20,
+    marginBottom: 20,
+    textAlign: "center",
+    fontSize: 13,
+    color: "#5A4633",
   },
 
   create:{
@@ -266,6 +309,18 @@ const styles = StyleSheet.create({
 
   // shadow Android
   elevation:10
+},
+  cardand:{
+  height:"70%",
+  width:"100%",
+  marginTop:0,
+  padding:30,
+  borderRadius:40,
+  backgroundColor:"rgba(255, 255, 255, 0.47)",
+  borderWidth:1,
+  borderColor:"rgba(145, 145, 145, 0.1)",
+  overflow:"hidden",
+ 
 },
 
 });

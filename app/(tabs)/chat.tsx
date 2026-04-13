@@ -2,55 +2,138 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { collection, getFirestore, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  arrayUnion,
+  collection,
+  getDocs, getFirestore, onSnapshot,
+  orderBy, query,
+  updateDoc,
+  where
+} from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { app } from '../../constants/firebase';
-
 interface ChatRoom {
-  chatId: string;
+  roomId: string;
   targetUid: string;
   targetName: string;
   lastMessage: string;
-  updatedAt: string;
-  unreadCount: number;
+  updatedAt: Date;
+  hasUnread: boolean; 
 }
 
 export default function ChatScreen() {
   const router = useRouter();
   const [chats, setChats] = useState<ChatRoom[]>([]);
-
   useEffect(() => {
     const auth = getAuth(app);
     const user = auth.currentUser;
     if (!user) return;
 
     const db = getFirestore(app);
+
+    // ✅ query เหมือน Swift — ดึงทุก message ที่ฉันเป็น participant
     const q = query(
       collection(db, 'chats'),
-      where('members', 'array-contains', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('participants', 'array-contains', user.uid),
+      //where('hiddenFor', 'not-in', [user.uid]),
+      orderBy('createdAt', 'desc')
     );
+      
 
     const unsub = onSnapshot(q, snap => {
-      const data: ChatRoom[] = snap.docs.map(doc => {
-        const d = doc.data();
-        const targetUid = d.members.find((uid: string) => uid !== user.uid) || '';
-        const unreadCount = d.unreadCount?.[user.uid] || 0;
-        return {
-          chatId: doc.id,
-          targetUid,
-          targetName: d.memberNames?.[targetUid] || '-',
-          lastMessage: d.lastMessage || '',
-          updatedAt: d.updatedAt || '',
-          unreadCount,
-        };
+      const chatDict: Record<string, ChatRoom> = {};
+
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const roomId = data.roomId as string;
+        const senderId = data.senderId as string;
+        const receiverId = data.receiverId as string;
+        const text = data.text as string || (data.type === 'post_card' ? `📌 ${data.title}` : '');
+        const createdAt = data.createdAt?.toDate() ?? new Date();
+        const isRead = data.isRead as boolean ?? true;
+
+        const isMeSender = senderId === user.uid;
+        const targetUid = isMeSender ? receiverId : senderId;
+        const targetName = isMeSender
+          ? (data.receiverName as string ?? '-')
+          : (data.senderName as string ?? '-');
+         const hiddenFor = data.hiddenFor as string[] ?? [];
+         if (hiddenFor.includes(user.uid)) return; 
+        // ✅ unread = ฉันเป็น receiver และยังไม่ได้อ่าน (เหมือน Swift)
+        const unread = !isMeSender && !isRead;
+
+        if (chatDict[roomId]) {
+          // อัปเดตถ้า message นี้ใหม่กว่า
+          if (createdAt > chatDict[roomId].updatedAt) {
+            chatDict[roomId].lastMessage = text;
+            chatDict[roomId].updatedAt = createdAt;
+            chatDict[roomId].targetUid = targetUid;
+            chatDict[roomId].targetName = targetName;
+          }
+          if (unread) chatDict[roomId].hasUnread = true;
+        } else {
+          chatDict[roomId] = {
+            roomId,
+            targetUid,
+            targetName,
+            lastMessage: text,
+            updatedAt: createdAt,
+            hasUnread: unread,
+          };
+        }
       });
-      setChats(data);
+
+      const sorted = Object.values(chatDict).sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+      );
+      setChats(sorted);
     });
 
     return () => unsub();
   }, []);
+const handleLongPress = (item: ChatRoom) => {
+        Alert.alert(
+          'ลบแชท',
+          `ต้องการลบแชทกับ ${item.targetName} หรือไม่`,
+          [
+            { text: 'ยกเลิก', style: 'cancel' },
+            {
+              text: 'ลบแชท',
+              style: 'destructive',
+              onPress: () => handleDeleteChat(item),
+            },
+          ]
+        );
+      };
+      const handleDeleteChat = async (item: ChatRoom) => {
+        try {
+          const auth = getAuth(app);
+          const user = auth.currentUser;
+          if (!user) return;
+
+          const db = getFirestore(app);
+
+          const q = query(
+            collection(db, 'chats'),
+            where('roomId', '==', item.roomId)
+          );
+
+          const snap = await getDocs(q);
+
+          const updates = snap.docs.map(doc =>
+            updateDoc(doc.ref, {
+              hiddenFor: arrayUnion(user.uid),
+            })
+          );
+
+          await Promise.all(updates);
+
+          console.log('ลบเฉพาะฝั่งเราแล้ว');
+        } catch (err) {
+          console.log('ลบไม่สำเร็จ', err);
+        }
+      };
 
   return (
     <View style={styles.container}>
@@ -66,46 +149,46 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           data={chats}
-          keyExtractor={item => item.chatId}
+          keyExtractor={item => item.roomId}
           contentContainerStyle={{ paddingTop: 0 }}
           renderItem={({ item }) => (
-        <TouchableOpacity
-            style={[
-              styles.chatItem,
-              item.unreadCount > 0 && styles.chatItemUnread // ✅ เพิ่มตรงนี้
-            ]}
-            onPress={() => router.push({
-              pathname: '../../chat/[id]',
-              params: {
-                targetUid: item.targetUid,
-                targetName: item.targetName,
-                postTitle: '',
-              }
-            })}
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {item.targetName !== '-' ? item.targetName[0].toUpperCase() : '?'}
-              </Text>
-            </View>
-            <View style={styles.textContainer}>
-              {/* ✅ ชื่อหนาขึ้นถ้ายังไม่อ่าน */}
-              <Text style={[styles.name, item.unreadCount > 0 && { color: '#1A1A1A', fontWeight: '700' }]}>
-                {item.targetName}
-              </Text>
-              {/* ✅ ข้อความหนาขึ้นถ้ายังไม่อ่าน */}
-              <Text style={[styles.message, item.unreadCount > 0 && { color: '#333', fontWeight: '600' }]} numberOfLines={1}>
-                {item.lastMessage}
-              </Text>
-            </View>
-            {item.unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.unreadCount > 99 ? '99+' : item.unreadCount}
+            <TouchableOpacity
+              style={[styles.chatItem, item.hasUnread && styles.chatItemUnread]}
+              onLongPress={() => handleLongPress(item)}
+              onPress={() => router.push({
+                pathname: '../../chat/ChatDetail',
+                params: {
+                  targetUid: item.targetUid,
+                  targetName: item.targetName,
+                  postTitle: '',
+                }
+              })}
+              
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {item.targetName !== '-' ? item.targetName[0].toUpperCase() : '?'}
                 </Text>
               </View>
-            )}
-          </TouchableOpacity>
+              <View style={styles.textContainer}>
+                <Text style={[
+                  styles.name,
+                  item.hasUnread && { color: '#1A1A1A', fontWeight: '700' }
+                ]}>
+                  {item.targetName}
+                </Text>
+                <Text style={[
+                  styles.message,
+                  item.hasUnread && { color: '#333', fontWeight: '600' }
+                ]} numberOfLines={1}>
+                  {item.lastMessage}
+                </Text>
+              </View>
+              {/* ✅ badge เหมือน Swift */}
+              {item.hasUnread && (
+                <View style={styles.dot} />
+              )}
+            </TouchableOpacity>
           )}
         />
       )}
@@ -115,36 +198,35 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFAF5' },
-  header: { paddingTop: 70, paddingBottom: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#E0D6CC' },
+  header: {
+    paddingTop: 70, paddingBottom: 15, paddingHorizontal: 20,
+    borderBottomWidth: 1, borderBottomColor: '#E0D6CC',
+  },
   headerTitle: { fontSize: 22, fontWeight: '600', color: '#5A4633' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 14, color: '#bbb' },
   chatItem: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, paddingHorizontal: 15,
-    borderBottomWidth: 1, borderBottomColor: '#E0D6CC', backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#E0D6CC',
+    backgroundColor: '#fff',
+  },
+  // ✅ highlight เหมือน Swift + Notify
+  chatItemUnread: {
+    backgroundColor: '#FFF3E8',
+   
   },
   avatar: {
     width: 45, height: 45, borderRadius: 23,
-    backgroundColor: '#f8e8dc', alignItems: 'center', justifyContent: 'center', marginRight: 12,
+    backgroundColor: '#f8e8dc', alignItems: 'center',
+    justifyContent: 'center', marginRight: 12,
   },
   avatarText: { fontSize: 18, fontWeight: '700', color: '#6E4D31' },
   textContainer: { flex: 1 },
   name: { fontSize: 15, fontWeight: '600', color: '#5A4633' },
   message: { fontSize: 13, color: '#888', marginTop: 2 },
-  badge: {
-  backgroundColor: '#F97316',
-  borderRadius: 12,
-  minWidth: 22,
-  height: 22,
-  alignItems: 'center',
-  justifyContent: 'center',
-  paddingHorizontal: 6,
-},
-badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-chatItemUnread: {
-  backgroundColor: '#FFF3E8', // ✅ พื้นหลังสีส้มอ่อนๆ
-  borderLeftWidth: 3,
-  borderLeftColor: '#F97316', // ✅ เส้นซ้ายสีส้ม
-},
+  dot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: '#F97316',
+  },
 });
