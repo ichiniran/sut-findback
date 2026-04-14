@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
-    addDoc, collection, getFirestore,
-    onSnapshot, orderBy, query,
-    serverTimestamp,
-    where,
-    writeBatch
+  addDoc, collection, getFirestore,
+  onSnapshot, orderBy, query,
+  serverTimestamp,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
-    FlatList, Image, Keyboard, KeyboardAvoidingView, Platform,
-    StyleSheet, Text, TextInput, TouchableOpacity, View,
+  FlatList, Image, Keyboard, KeyboardAvoidingView, Platform,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { app } from '../../constants/firebase';
@@ -198,7 +198,7 @@ export default function ChatDetail() {
                       style={styles.postCard}
                       activeOpacity={0.85}
                       onPress={() => router.push({
-                        pathname: '/PostDetail',
+                        pathname: '/post-detail',
                         params: {
                           postId: item.postId || '',
                           title: item.title || '',

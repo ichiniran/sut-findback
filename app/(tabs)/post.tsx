@@ -28,7 +28,7 @@ export default function PostScreen() {
           <TouchableOpacity
             style={styles.card}
             activeOpacity={0.85}
-            onPress={() => router.push('/PostForm?type=found' as any)}
+            onPress={() => router.push('/post-form?type=found' as any)}
           >
             <LinearGradient
               colors={['#ffffff', '#ffffff']}
@@ -46,7 +46,7 @@ export default function PostScreen() {
           <TouchableOpacity
             style={styles.card}
             activeOpacity={0.85}
-            onPress={() => router.push('/PostForm?type=lost' as any)}
+            onPress={() => router.push('/post-form?type=lost' as any)}
           >
             <LinearGradient
               colors={['#ffffff', '#ffffff']}

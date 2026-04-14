@@ -3,21 +3,21 @@ import ReportModal from "@/components/ReportModal";
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { deleteDoc, doc, getDoc, getFirestore, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
-    Image,
-    SafeAreaView,
+    Image, Linking, Modal,
     ScrollView,
     Share,
     StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import BookmarkButton from '../components/BookmarkButton';
 import { app } from '../constants/firebase';
@@ -43,31 +43,55 @@ export default function PostDetail() {
   const [saved, setSaved] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<Record<string, string> & { onPostDeleted?: any }>();
-  const {
-    postId,
-    userId,
-    type,
-    title,
-    detail,
-    location,
-    locationName,
-    locationDetail,
-    receiveLocation,
-    username,
-    user,
-    date,
-    createdAt,
-    images,
-    imageUri,
-    locationImage,
-    category,
-    latitude,
-    longitude,
-    currentStatus,
-    onPostDeleted,
-  } = params;
+  const [postData, setPostData] = useState<any>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const isFound = type === 'found';
+  const { postId, onPostDeleted } = params;
+
+
+  const resolvedType = params.type || postData?.type || 'found';
+  const resolvedTitle =params.title && params.title.trim() !== ''? params.title : postData?.category || '-';
+  const resolvedDetail = params.detail || postData?.detail || '';
+  const resolvedCategory = params.category || postData?.category || '';
+  const resolvedLocation = params.location || postData?.location || '';
+  const resolvedLocationName = params.locationName || postData?.locationName || resolvedLocation;
+  const resolvedLocationDetail = params.locationDetail || postData?.locationDetail || '';
+  const resolvedReceiveLocation = params.receiveLocation || postData?.receiveLocation || '';
+  const resolvedUsername = params.username || params.user || postData?.username || '-';
+  const resolvedUserId = params.userId || postData?.userId || '';
+  const resolvedDate = params.date || (params.createdAt ? params.createdAt.split('T')[0] : '') || postData?.date || (postData?.createdAt ? postData.createdAt.split('T')[0] : '-');
+  const resolvedLatitude = params.latitude || (postData?.latitude ? String(postData.latitude) : '');
+  const resolvedLongitude = params.longitude || (postData?.longitude ? String(postData.longitude) : '');
+  const resolvedLocationImage = params.locationImage || postData?.locationImage || null;
+  //const resolvedCurrentStatus = params.currentStatus || postData?.status || 'waiting';
+  const [status, setStatus] = useState<'waiting' | 'claimed'>('waiting');
+  const isFound = resolvedType === 'found';
+
+  let itemImages: string[] = [];
+  if (params.images) {
+    try { itemImages = JSON.parse(params.images); } catch { itemImages = [params.images]; }
+  }
+  if (itemImages.length === 0 && params.imageUri) itemImages = [params.imageUri];
+  if (itemImages.length === 0 && postData?.images) itemImages = postData.images;
+
+  const [imgIdx, setImgIdx] = useState(0);
+  const screenWidth = Dimensions.get('window').width;
+
+ useEffect(() => {
+  if (!postId) { setLoading(false); return; }
+  const db = getFirestore(app);
+  const unsub = onSnapshot(doc(db, 'posts', postId), (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      console.log("postData:", data);
+      setStatus(data.status === 'claimed' ? 'claimed' : 'waiting');
+      setPostData(data);
+    }
+    setLoading(false); 
+  });
+  return () => unsub();
+}, [postId]);
 
   useEffect(() => {
     const checkSaved = async () => {
@@ -85,29 +109,16 @@ export default function PostDetail() {
       }
     };
     checkSaved();
-  }, [postId, type]);
+  }, [postId, resolvedType]);
 
-  // parse รูปสิ่งของ
-  let itemImages: string[] = [];
-  if (images) {
-    try { itemImages = JSON.parse(images); } catch { itemImages = [images]; }
-  }
-  if (itemImages.length === 0 && imageUri) itemImages = [imageUri];
-
-  const [imgIdx, setImgIdx] = useState(0);
-  const screenWidth = Dimensions.get('window').width;
-  const [status, setStatus] = useState<'waiting' | 'claimed'>(
-    currentStatus === 'claimed' ? 'claimed' : 'waiting'
-  );
-
-  const displayUser = username || user || '-';
-  const displayDate = date || (createdAt ? createdAt.split('T')[0] : '-');
-  const displayLocation = locationName || location || '-';
   const auth = getAuth(app);
   const currentUid = auth.currentUser?.uid;
-  const isOwner = currentUid === userId;
+  const isOwner = currentUid === resolvedUserId;
 
-  // ── handleClaimed — flat collection ──
+  const displayUser = resolvedUsername;
+  const displayDate = resolvedDate;
+  const displayLocation = resolvedLocationName;
+
   const handleClaimed = () => {
     Alert.alert(
       isFound ? 'ยืนยันการรับของ' : 'ยืนยันการได้รับของ',
@@ -117,13 +128,25 @@ export default function PostDetail() {
         {
           text: 'ยืนยัน',
           onPress: async () => {
-            setStatus('claimed');
             try {
               const db = getFirestore(app);
-              // ✅ flat collection
               await updateDoc(doc(db, 'posts', postId!), { status: 'claimed' });
+              await addDoc(
+                collection(db, 'users', resolvedUserId!, 'notifications'),
+                {
+                  title: isFound ? 'มีคนมารับของแล้ว' : 'ได้รับของคืนแล้ว',
+                  desc: isFound ? 'โพสต์นี้ของคุณมีคนมารับไปแล้ว' : 'โพสต์ของคุณถูกอัปเดตสถานะแล้ว',
+                  postId: postId,
+                  type: resolvedType,
+                  ownerId: resolvedUserId,
+                  itemImage: itemImages[0] || '',
+                  isRead: false,
+                  createdAt: new Date(),
+                  
+                }
+              );
             } catch (e) {
-              console.log('update status error:', e);
+              console.log(e);
             }
           },
         },
@@ -138,31 +161,31 @@ export default function PostDetail() {
     router.push({
       pathname: '../chat/ChatDetail',
       params: {
-        targetUid: userId || '',
+        targetUid: resolvedUserId,
         targetName: displayUser,
-        postTitle: title || '',
+        postTitle: resolvedTitle,
         postId: postId || '',
-        postType: type || '',
+        postType: resolvedType,
         postImageUri: itemImages[0] || '',
         postLocationName: displayLocation,
         postDate: displayDate,
-        postDetail: detail || '',
-        postLocation: location || '',
-        postLocationDetail: locationDetail || '',
-        postReceiveLocation: receiveLocation || '',
+        postDetail: resolvedDetail,
+        postLocation: resolvedLocation,
+        postLocationDetail: resolvedLocationDetail,
+        postReceiveLocation: resolvedReceiveLocation,
         postUsername: displayUser,
-        postUserId: userId || '',
-        postImages: images || '',
-        postCategory: category || '',
-        postLatitude: latitude || '',
-        postLongitude: longitude || '',
-        postCurrentStatus: currentStatus || '',
+        postUserId: resolvedUserId,
+        postImages: params.images || JSON.stringify(itemImages),
+        postCategory: resolvedCategory,
+        postLatitude: resolvedLatitude,
+        postLongitude: resolvedLongitude,
+        postCurrentStatus: status,
       },
     });
   };
 
   const handleShare = async () => {
-    await Share.share({ message: `พบของ: ${title}\nสถานที่: ${displayLocation}\nวันที่: ${displayDate}` });
+    await Share.share({ message: `พบของ: ${resolvedTitle}\nสถานที่: ${displayLocation}\nวันที่: ${displayDate}` });
   };
 
   const handleBookmark = async () => {
@@ -176,10 +199,13 @@ export default function PostDetail() {
       const ref = doc(db, 'users', user.uid, saveType, postId!);
       if (!saved) {
         await setDoc(ref, {
-          postId, type, title, detail, location, locationName, locationDetail,
-          receiveLocation, username, user: user.uid, userId, date, createdAt,
-          images, imageUri, locationImage, category, latitude, longitude,
-          currentStatus, savedAt: new Date().toISOString(),
+          postId, type: resolvedType, title: resolvedTitle, detail: resolvedDetail,
+          location: resolvedLocation, locationName: resolvedLocationName,
+          locationDetail: resolvedLocationDetail, receiveLocation: resolvedReceiveLocation,
+          username: resolvedUsername, userId: resolvedUserId, date: resolvedDate,
+          images: itemImages, locationImage: resolvedLocationImage, category: resolvedCategory,
+          latitude: resolvedLatitude, longitude: resolvedLongitude, currentStatus: status,
+          savedAt: new Date().toISOString(),
         }, { merge: true });
         setSaved(true);
       } else {
@@ -192,6 +218,22 @@ export default function PostDetail() {
     setIsSaving(false);
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safe, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: COLORS.textMuted }}>กำลังโหลด...</Text>
+      </SafeAreaView>
+    );
+  }
+    const openMap = () => {
+      const lat = resolvedLatitude;
+      const lng = resolvedLongitude;
+
+      if (!lat || !lng) return;
+
+      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      Linking.openURL(url);
+    };
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
@@ -203,8 +245,8 @@ export default function PostDetail() {
         </TouchableOpacity>
         <View style={styles.navUserInfo}>
           <View style={styles.navAvatar}>
-            {userId ? (
-              <UserAvatar uid={userId} fallback={displayUser !== '-' ? displayUser[0].toUpperCase() : 'U'} />
+            {resolvedUserId ? (
+              <UserAvatar uid={resolvedUserId} fallback={displayUser !== '-' ? displayUser[0].toUpperCase() : 'U'} />
             ) : (
               <Text style={styles.navAvatarText}>{displayUser !== '-' ? displayUser[0].toUpperCase() : 'U'}</Text>
             )}
@@ -214,8 +256,8 @@ export default function PostDetail() {
             <Text style={styles.navTime}>โพสต์เมื่อ {displayDate}</Text>
           </View>
         </View>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.textMuted} onPress={() => setMenuVisible(true)} />
+        <TouchableOpacity onPress={() => setMenuVisible(true)}>
+          <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -226,7 +268,8 @@ export default function PostDetail() {
         <View style={styles.imageBox}>
           {itemImages.length > 0 ? (
             <>
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+              <ScrollView
+                horizontal pagingEnabled showsHorizontalScrollIndicator={false}
                 onScroll={e => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / screenWidth))}
                 scrollEventThrottle={16}
               >
@@ -263,22 +306,33 @@ export default function PostDetail() {
         {/* Content Card */}
         <View style={styles.card}>
           <View style={styles.titleRow}>
-            <Text style={styles.postTitle} numberOfLines={2} ellipsizeMode="tail">{title || 'ไม่ระบุชื่อ'}</Text>
+            <Text style={styles.postTitle} numberOfLines={2} ellipsizeMode="tail">{resolvedTitle}</Text>
             <BookmarkButton
-              postId={postId} type={type}
-              postData={{ postId, type, title, detail, location, locationName, locationDetail, receiveLocation, username, user, userId, date, createdAt, images, imageUri, locationImage, category, latitude, longitude, currentStatus }}
+              postId={postId}
+              type={resolvedType}
+              postData={{
+                postId, type: resolvedType, title: resolvedTitle, detail: resolvedDetail,
+                location: resolvedLocation, locationName: resolvedLocationName,
+                locationDetail: resolvedLocationDetail, receiveLocation: resolvedReceiveLocation,
+                username: resolvedUsername, userId: resolvedUserId, date: resolvedDate,
+                images: JSON.stringify(itemImages), locationImage: resolvedLocationImage,
+                category: resolvedCategory, latitude: resolvedLatitude, longitude: resolvedLongitude,
+                currentStatus: status,
+              }}
             />
           </View>
           <StatusChip status={status} isFound={isFound} />
           <View style={styles.divider} />
 
           <View style={styles.infoList}>
-            {category ? <InfoRow icon="pricetag-outline" label="หมวดหมู่" value={category} /> : null}
-            {detail ? <InfoRow icon="document-text-outline" label="รายละเอียด" value={detail} /> : null}
+            {/* {resolvedCategory ? <InfoRow icon="pricetag-outline" label="หมวดหมู่" value={resolvedCategory} /> : null} */}
+            {resolvedDetail ? <InfoRow icon="document-text-outline" label="รายละเอียด" value={resolvedDetail} /> : null}
             <InfoRow icon="calendar-outline" label={isFound ? 'วันที่พบ' : 'วันที่หาย'} value={displayDate} />
-            <InfoRow icon="location-outline" label={isFound ? 'สถานที่พบ' : 'สถานที่หาย'} value={displayLocation} sub={locationDetail || undefined} />
-            {latitude && longitude ? (
-              <View style={{ marginHorizontal: 20, marginTop: 8, borderRadius: 12, overflow: 'hidden', height: 200 }}>
+            <InfoRow icon="location-outline" label={isFound ? 'สถานที่พบ' : 'สถานที่หาย'} value={displayLocation} sub={resolvedLocationDetail || undefined} />
+
+            {resolvedLatitude && resolvedLongitude ? (
+              <TouchableOpacity activeOpacity={0.9} onPress={openMap}  style={{ marginHorizontal: 20, marginTop: 8, borderRadius: 12, overflow: 'hidden' }} >
+               <View style={{ height: 200 }}>
                 <WebView
                   style={{ flex: 1 }}
                   javaScriptEnabled domStorageEnabled scrollEnabled={false}
@@ -290,7 +344,7 @@ export default function PostDetail() {
                       <body><div id="map"></div>
                       <script>
                         function initMap(){
-                          var pos={lat:${parseFloat(latitude)},lng:${parseFloat(longitude)}};
+                          var pos={lat:${parseFloat(resolvedLatitude)},lng:${parseFloat(resolvedLongitude)}};
                           var map=new google.maps.Map(document.getElementById('map'),{center:pos,zoom:17,disableDefaultUI:true,zoomControl:false,gestureHandling:'none'});
                           new google.maps.Marker({position:pos,map:map});
                         }
@@ -301,36 +355,46 @@ export default function PostDetail() {
                   }}
                 />
               </View>
+            </TouchableOpacity>
             ) : null}
 
-            {receiveLocation ? (
+            {/* ── สถานที่รับคืน + รูปจุดฝาก ── */}
+            {resolvedReceiveLocation ? (
               <View style={styles.infoRow}>
-                <Ionicons name="hand-left-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
+                <Ionicons name="business-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
                 <View style={styles.infoText}>
-                  <Text style={styles.infoLabel}>สถานที่รับคืนนน</Text>
-                  <Text style={styles.infoValue}>{receiveLocation}</Text>
-                  {locationImage ? (
-                    <View style={styles.locationImageWrap}>
-                      <Image source={{ uri: locationImage }} style={styles.locationImageThumb} resizeMode="cover" />
+                  <Text style={styles.infoLabel}>สถานที่รับคืน</Text>
+                  <Text style={styles.infoValue}>{resolvedReceiveLocation}</Text>
+                  {resolvedLocationImage ? (
+                    // ✅ TouchableOpacity เป็น wrapper เดียว ไม่ซ้อน View
+                    <TouchableOpacity
+                      style={styles.locationImageWrap}
+                      onPress={() => setPreviewImage(resolvedLocationImage)}
+                    >
+                      <Image source={{ uri: resolvedLocationImage }} style={styles.locationImageThumb} resizeMode="cover" />
                       <View style={styles.locationImageLabel}>
                         <Ionicons name="camera" size={11} color="#fff" />
                         <Text style={styles.locationImageLabelText}>รูปจุดฝาก</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ) : null}
                 </View>
               </View>
-            ) : locationImage ? (
+            ) : resolvedLocationImage ? (
               <View style={styles.infoRow}>
                 <Ionicons name="camera-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
                 <View style={styles.infoText}>
                   <Text style={styles.infoLabel}>รูปจุดฝาก</Text>
-                  <View style={styles.locationImageWrap}>
-                    <Image source={{ uri: locationImage }} style={styles.locationImageThumb} resizeMode="cover" />
-                  </View>
+                  <TouchableOpacity
+                    style={styles.locationImageWrap}
+                    onPress={() => setPreviewImage(resolvedLocationImage)}
+                  >
+                    <Image source={{ uri: resolvedLocationImage }} style={styles.locationImageThumb} resizeMode="cover" />
+                  </TouchableOpacity>
                 </View>
               </View>
             ) : null}
+
           </View>
         </View>
         <View style={{ height: 32 }} />
@@ -395,31 +459,30 @@ export default function PostDetail() {
         onSave={() => console.log("save")}
         onEdit={() => {
           setMenuVisible(false);
-          // ✅ ชี้ไปที่ PostForm พร้อมส่ง type
-          router.push({
-            pathname: '../PostForm',
+          router.replace({
+            pathname: '../post-form',
             params: {
               mode: 'edit',
-              type,
+              type: resolvedType,
               postId,
-              userId,
-              category,
-              detail,
-              location,
-              locationName,
-              locationDetail,
-              receiveLocation,
-              images,
-              imageUri,
-              locationImage,
-              date,
-              latitude,
-              longitude,
+              userId: resolvedUserId,
+              category: resolvedCategory,
+              detail: resolvedDetail,
+              location: resolvedLocation,
+              locationName: resolvedLocationName,
+              locationDetail: resolvedLocationDetail,
+              receiveLocation: resolvedReceiveLocation,
+              images: JSON.stringify(itemImages),
+              locationImage: resolvedLocationImage || '',
+              date: resolvedDate,
+              latitude: resolvedLatitude,
+              longitude: resolvedLongitude,
+              from: 'detail',
             },
           });
         }}
         onDelete={async () => {
-          if (!postId || !userId) return;
+          if (!postId || !resolvedUserId) return;
           Alert.alert('ลบโพสต์', 'คุณต้องการลบโพสต์นี้หรือไม่?', [
             { text: 'ยกเลิก', style: 'cancel' },
             {
@@ -428,7 +491,6 @@ export default function PostDetail() {
               onPress: async () => {
                 try {
                   const db = getFirestore(app);
-                  // ✅ ลบจาก flat collection อย่างเดียว
                   await deleteDoc(doc(db, 'posts', postId));
                   Alert.alert('ลบโพสต์สำเร็จ');
                   if (typeof onPostDeleted === 'function') onPostDeleted();
@@ -448,12 +510,26 @@ export default function PostDetail() {
         onClose={() => setReportVisible(false)}
         selectedReason={selectedReason}
         setSelectedReason={setSelectedReason}
-        onSubmit={() => {
-          console.log("report:", selectedReason);
-          setReportVisible(false);
-          setSelectedReason("");
-        }}
+        postId={postId}   // 🔥 ตัวสำคัญ!!!
       />
+
+      {/* ✅ Modal ดูรูปใหญ่ — ปุ่มปิดอยู่ใน layout ปกติ ไม่ใช้ position absolute */}
+      <Modal visible={!!previewImage} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.previewContainer}>
+          <View style={styles.previewHeader}>
+            <TouchableOpacity style={styles.previewClose} onPress={() => setPreviewImage(null)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <Image
+            source={{ uri: previewImage || '' }}
+            style={styles.previewImage}
+            resizeMode="contain"
+          />
+          <TouchableOpacity style={styles.previewFooter} onPress={() => setPreviewImage(null)} />
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -587,7 +663,10 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 3 },
   infoValue: { fontSize: 15, fontWeight: '500', color: COLORS.textMain, lineHeight: 22 },
   infoSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  locationImageWrap: { marginTop: 10, borderRadius: 12, overflow: 'hidden', position: 'relative', alignSelf: 'flex-start' },
+  locationImageWrap: {
+    marginTop: 10, borderRadius: 12, overflow: 'hidden',
+    position: 'relative', alignSelf: 'flex-start',
+  },
   locationImageThumb: { width: 220, height: 130, borderRadius: 12 },
   locationImageLabel: {
     position: 'absolute', bottom: 8, left: 8,
@@ -617,5 +696,30 @@ const styles = StyleSheet.create({
   stickyBottom: {
     paddingHorizontal: 20, paddingVertical: 12, paddingBottom: 8,
     backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, gap: 10,
+  },
+  // ── Modal preview ──
+  previewContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    flexDirection: 'column',
+  },
+  previewHeader: {
+    width: '100%',
+    paddingTop: 60,
+    paddingRight: 20,
+    alignItems: 'flex-end',
+  },
+  previewClose: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+  },
+  previewImage: {
+    width: '100%',
+    flex: 1,
+  },
+  previewFooter: {
+    height: 80,
+    width: '100%',
   },
 });

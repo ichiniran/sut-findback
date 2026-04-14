@@ -59,7 +59,7 @@ export default function NotifyScreen() {
 
   
       router.push({
-        pathname: '/PostDetail',
+        pathname: '/post-detail',
         params: {
           postId: item.postId,
           type: item.type || 'found', 

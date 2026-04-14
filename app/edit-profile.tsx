@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { doc, getFirestore, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,7 +50,25 @@ export default function EditProfileScreen() {
         const fbUser = auth.currentUser;
         if (!fbUser) throw new Error('No user');
         const db = getFirestore(app);
+       // เช็ค username ซ้ำก่อน
+          const q = query(
+            collection(db, "users"),
+            where("username", "==", username)
+          );
 
+          const snapshot = await getDocs(q);
+
+          if (!snapshot.empty) {
+            const isSameUser = snapshot.docs.some(
+              doc => doc.id === fbUser.uid
+            );
+
+            if (!isSameUser) {
+              alert("username นี้ถูกใช้แล้ว");
+              setSaving(false);
+              return;
+            }
+          }
         // อัปเดตชื่อ
         await updateProfile(fbUser, { displayName: username });
         await updateDoc(doc(db, 'users', fbUser.uid), { username });

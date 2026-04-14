@@ -2,7 +2,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
 import { useState } from "react";
 import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -36,6 +36,56 @@ export default function Login() {
       }
     }
   };
+  const handleForgotPassword = async () => {
+  try {
+    if (!emailOrUsername) {
+      alert("กรุณากรอก Email");
+      return;
+    }
+
+    let email = emailOrUsername;
+    const db = getFirestore(app);
+
+    // 🔥 ถ้าเป็น username → หา email
+    if (!emailOrUsername.includes("@")) {
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", emailOrUsername)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert("ไม่พบ username นี้");
+        return;
+      }
+
+      email = snapshot.docs[0].data().email;
+    }
+
+    // 🔥 เช็คว่า email มีใน Firestore ไหม
+    const q2 = query(
+      collection(db, "users"),
+      where("email", "==", email)
+    );
+
+    const snapshot2 = await getDocs(q2);
+
+    if (snapshot2.empty) {
+      alert("ไม่พบอีเมลนี้ในระบบ");
+      return;
+    }
+
+    // ✅ ค่อยส่ง reset
+    const auth = getAuth(app);
+    await sendPasswordResetEmail(auth, email);
+
+    alert("ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว");
+
+  } catch (error: any) {
+    console.log(error);
+    alert(error.message);
+  }
+};
   return (
     <LinearGradient
       colors={["#FFFAF5", "#ffe6d0"]}
@@ -73,7 +123,9 @@ export default function Login() {
             onChangeText={setPassword}
             value={password}
           />
+          <TouchableOpacity onPress={handleForgotPassword}>
           <Text style={styles.forgot}>forgot Password?</Text>
+        </TouchableOpacity>
           <TouchableOpacity 
             style={styles.loginButton} 
             onPress={handleLogin}

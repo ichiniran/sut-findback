@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MyPostsList from './MyPostsList';
+import MyPostsList from './my-posts-list';
 
 export default function MyPostsScreen() {
   const router = useRouter();

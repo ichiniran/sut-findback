@@ -5,11 +5,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { doc, getFirestore, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, getFirestore, query, setDoc, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 import { app } from "../constants/firebase";
-
 WebBrowser.maybeCompleteAuthSession();
 
 export default function Regis() {
@@ -57,6 +56,20 @@ const handleRegister = async () => {
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // 🔥 เช็ค username ซ้ำก่อน
+    const q = query(
+      collection(db, "users"),
+      where("username", "==", username)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      alert("username นี้ถูกใช้แล้ว");
+      return;
+    }
+
+    // ✅ ถ้าไม่ซ้ำ → สมัคร
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -65,15 +78,13 @@ const handleRegister = async () => {
 
     const user = userCredential.user;
 
-    // Save user info to Firestore
     await setDoc(doc(db, "users", user.uid), {
-      username: username,
-      email: email,
+      username,
+      email,
       createdAt: new Date(),
-      images: [], // เพิ่มฟิลด์ images เป็น array ว่าง
+      images: [],
     });
 
-    console.log("สมัครสำเร็จ:", user);
     router.replace("/(tabs)");
 
   } catch (error) {

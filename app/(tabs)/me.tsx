@@ -97,7 +97,7 @@ export default function MeScreen() {
   const handleMenuPress = (item: string) => {
     if (item === 'จัดการบัญชี') router.push('/account-settings');
     else if (item === 'การตั้งค่า') router.push('/settings');
-    else if (item === 'โพสต์ของฉัน') router.push('/MyPostsScreen');
+    else if (item === 'โพสต์ของฉัน') router.push('/my-posts-screen');
     else if (item === 'รายการที่บันทึกไว้') router.push('/saved');
   };
 
@@ -150,7 +150,7 @@ export default function MeScreen() {
           {/* Info */}
           <View>
             <Text style={styles.userId}>{user?.username ? user.username : "-"}</Text>
-            <Pressable style={styles.editBtn} onPress={() => router.push('/editprofile')}>
+            <Pressable style={styles.editBtn} onPress={() => router.push('/edit-profile')}>
               <Text style={styles.editText}>แก้ไขโปรไฟล์</Text>
               <Ionicons name="pencil-outline" size={14} color="#6E4D31" />
             </Pressable>
@@ -159,7 +159,7 @@ export default function MeScreen() {
 
         {/* STAT CARDS */}
         <View style={styles.statsRow}>
-        <Pressable style={styles.statCard} onPress={() => router.push('/MyPostsScreen')}>
+        <Pressable style={styles.statCard} onPress={() => router.push('/my-posts-screen')}>
           {postCount === null ? (
             <View style={styles.skelNumber} /> // ✅ skeleton แทนเลข
           ) : (

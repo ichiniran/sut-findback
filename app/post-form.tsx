@@ -389,7 +389,7 @@ const reverseGeocode = async (lat: number, lon: number) => {
 
 if (params.from === 'detail') {
   router.replace({
-    pathname: '/PostDetail',
+    pathname: '/post-detail',
     params: {
       postId: postId,
       type: type,
@@ -420,13 +420,18 @@ if (params.from === 'detail') {
           if (uploadedLocationImage) postData.locationImage = uploadedLocationImage;
         }
 
-        // flat collection 🎯
+        // flat collection 
         const docRef = await addDoc(collection(db, 'posts'), postData);
         await setDoc(docRef, { postId: docRef.id }, { merge: true });
 
         Alert.alert('บันทึกสำเร็จ', 'โพสต์ของคุณถูกบันทึกแล้ว');
         resetForm();
-        router.replace('/(tabs)');
+        router.replace({
+        pathname: '/(tabs)',
+        params: {
+          fromTab: type === 'found' ? 'found' : 'lost'
+        }
+      });
       }
     } catch (e) {
       console.log('ERROR:', e);
