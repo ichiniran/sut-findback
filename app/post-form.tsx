@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
@@ -6,7 +7,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
-
 import {
   Alert,
   Image,
@@ -39,20 +39,39 @@ const todayFormatted = () => {
   return `${day}/${month}/${year}`;
 };
 
-const uploadToCloudinary = async (localUri: string): Promise<string> => {
-  if (localUri.startsWith('http')) return localUri;
-  const formData = new FormData();
-  const ext = localUri.split('.').pop()?.toLowerCase() || 'jpg';
-  const mimeType = ext === 'png' ? 'image/png' : ext === 'heic' ? 'image/heic' : 'image/jpeg';
-  formData.append('file', { uri: localUri, type: mimeType, name: `photo.${ext}` } as any);
-  formData.append('upload_preset', 'nxbvgcct');
-  formData.append('cloud_name', 'dto2v8z6t');
-  const res = await fetch('https://api.cloudinary.com/v1_1/dto2v8z6t/image/upload', {
-    method: 'POST', body: formData,
-  });
-  const data = await res.json();
-  return data.secure_url;
-};
+    const uploadToCloudinary = async (localUri: string): Promise<string> => {
+      if (localUri.startsWith('http')) return localUri;
+
+      const formData = new FormData();
+
+      // 🔥 บังคับเป็น JPG ไปเลย ไม่ต้องสน ext เดิม
+      formData.append('file', {
+        uri: localUri,
+        type: 'image/jpeg',
+        name: 'photo.jpg',
+      } as any);
+
+      formData.append('upload_preset', 'nxbvgcct');
+      formData.append('cloud_name', 'dto2v8z6t');
+
+      const res = await fetch(
+        'https://api.cloudinary.com/v1_1/dto2v8z6t/image/upload',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      // 🔥 debug เผื่อมี error
+      if (!data.secure_url) {
+        console.log('Cloudinary error:', data);
+        throw new Error('Upload failed');
+      }
+
+      return data.secure_url;
+    };
 
 export default function PostForm() {
   const router = useRouter();
@@ -68,7 +87,7 @@ export default function PostForm() {
 
   // form state
   const [images, setImages] = useState<string[]>([]);
-  const [locationImage, setLocationImage] = useState<string | null>(null); // found only
+  const [receiveLocationImage, setReceiveLocationImage] = useState<string | null>(null); // found only
   const [category, setCategory] = useState('');
   const [showCategoryDD, setShowCategoryDD] = useState(false);
   const [otherCategory, setOtherCategory] = useState('');
@@ -103,7 +122,7 @@ export default function PostForm() {
   // ── reset ────────────────────────────────────────────────
   const resetForm = () => {
     setImages([]);
-    setLocationImage(null);
+    setReceiveLocationImage(null);
     setCategory('');
     setOtherCategory('');
     setDetail('');
@@ -141,7 +160,7 @@ export default function PostForm() {
         try { setImages(JSON.parse(params.images as string)); }
         catch { setImages([params.images as string]); }
       }
-      if (params.locationImage) setLocationImage(params.locationImage as string);
+      if (params.receiveLocationImage) setReceiveLocationImage(params.receiveLocationImage as string);
     } else {
       resetForm();
     }
@@ -279,7 +298,23 @@ const reverseGeocode = async (lat: number, lon: number) => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') { alert('กรุณาอนุญาตการเข้าถึงกล้อง'); return; }
           const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
-          if (!result.canceled) setImages(prev => [...prev, result.assets[0].uri]);
+          if (!result.canceled) {
+          const converted = await Promise.all(
+            result.assets.map(async (asset) => {
+              const manipulated = await ImageManipulator.manipulateAsync(
+                asset.uri,
+                [],
+                {
+                  compress: 0.8,
+                  format: ImageManipulator.SaveFormat.JPEG,
+                }
+              );
+              return manipulated.uri;
+            })
+          );
+
+          setImages(prev => [...prev, ...converted]);
+        }
         },
       },
       {
@@ -293,7 +328,23 @@ const reverseGeocode = async (lat: number, lon: number) => {
             quality: 0.8,
             selectionLimit: 3,
           });
-          if (!result.canceled) setImages(prev => [...prev, ...result.assets.map(a => a.uri)]);
+          if (!result.canceled) {
+          const convertedImages = await Promise.all(
+            result.assets.map(async (asset) => {
+              const manipulated = await ImageManipulator.manipulateAsync(
+                asset.uri,
+                [],
+                {
+                  compress: 0.8,
+                  format: ImageManipulator.SaveFormat.JPEG,
+                }
+              );
+              return manipulated.uri;
+            })
+          );
+
+          setImages(prev => [...prev, ...convertedImages]);
+        }
         },
       },
       { text: 'ยกเลิก', style: 'cancel' },
@@ -308,7 +359,18 @@ const reverseGeocode = async (lat: number, lon: number) => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') { alert('กรุณาอนุญาตการเข้าถึงกล้อง'); return; }
           const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
-          if (!result.canceled) setLocationImage(result.assets[0].uri);
+          if (!result.canceled) {
+          const manipulated = await ImageManipulator.manipulateAsync(
+            result.assets[0].uri,
+            [],
+            {
+              compress: 0.8,
+              format: ImageManipulator.SaveFormat.JPEG,
+            }
+          );
+
+          setReceiveLocationImage(manipulated.uri);
+        }
         },
       },
       {
@@ -317,7 +379,18 @@ const reverseGeocode = async (lat: number, lon: number) => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') { alert('กรุณาอนุญาตการเข้าถึงรูปภาพ'); return; }
           const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8 });
-          if (!result.canceled) setLocationImage(result.assets[0].uri);
+          if (!result.canceled) {
+          const manipulated = await ImageManipulator.manipulateAsync(
+            result.assets[0].uri,
+            [],
+            {
+              compress: 0.8,
+              format: ImageManipulator.SaveFormat.JPEG,
+            }
+          );
+
+  setReceiveLocationImage(manipulated.uri);
+}
         },
       },
       { text: 'ยกเลิก', style: 'cancel' },
@@ -363,7 +436,7 @@ const reverseGeocode = async (lat: number, lon: number) => {
       const username = userDoc.data()?.username || userDoc.data()?.email || '-';
 
       const uploadedImages = await Promise.all(images.map(uploadToCloudinary));
-      const uploadedLocationImage = locationImage ? await uploadToCloudinary(locationImage) : null;
+      const uploadedreceiveLocationImage = receiveLocationImage ? await uploadToCloudinary(receiveLocationImage) : null;
 
       const db = getFirestore(app);
 
@@ -382,7 +455,7 @@ const reverseGeocode = async (lat: number, lon: number) => {
         };
         if (isFound) {
           updateData.receiveLocation = receiveLocation;
-          if (uploadedLocationImage) updateData.locationImage = uploadedLocationImage;
+          if (uploadedreceiveLocationImage) updateData.receiveLocationImage = uploadedreceiveLocationImage;
         }
         await setDoc(doc(db, 'posts', postId), updateData, { merge: true });
        Alert.alert('แก้ไขสำเร็จ');
@@ -417,7 +490,7 @@ if (params.from === 'detail') {
         };
         if (isFound) {
           postData.receiveLocation = receiveLocation;
-          if (uploadedLocationImage) postData.locationImage = uploadedLocationImage;
+          if (uploadedreceiveLocationImage) postData.receiveLocationImage = uploadedreceiveLocationImage;
         }
 
         // flat collection 
@@ -714,8 +787,8 @@ if (params.from === 'detail') {
               อัปโหลดรูปจุดฝาก <Text style={styles.optional}>(แนะนำ)</Text>
             </Text>
             <TouchableOpacity style={styles.imageBox} onPress={pickLocationImage}>
-              {locationImage
-                ? <Image source={{ uri: locationImage }} style={styles.imageFill} />
+              {receiveLocationImage
+                ? <Image source={{ uri: receiveLocationImage }} style={styles.imageFill} />
                 : <>
                     <Ionicons name="camera-outline" size={28} color="#FBAA58" />
                     <Text style={styles.imageBoxText}>ถ่ายรูป</Text>

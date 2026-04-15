@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
-import { addDoc, collection, getDocs, getFirestore, query, serverTimestamp, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, where } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert, Animated,
@@ -34,7 +34,19 @@ export default function ReportModal({
   try {
     const user = auth.currentUser;
 
-    // 🔥 เช็คก่อน
+    // 🔥 ไปดึง username จาก users collection
+    let username = "";
+
+    try {
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      if (userSnap.exists()) {
+        username = userSnap.data().username || "";
+      }
+    } catch (e) {
+      console.error("โหลด username ไม่ได้", e);
+    }
+
+    // 🔥 เช็คซ้ำก่อน
     const q = query(
       collection(db, "reports"),
       where("postId", "==", postId),
@@ -48,10 +60,11 @@ export default function ReportModal({
       return;
     }
 
-    // ✅ ถ้ายังไม่เคย → ค่อยเพิ่ม
+    // ✅ เพิ่ม report (ใส่ username ไปเลย!)
     await addDoc(collection(db, "reports"), {
       postId,
       reportedBy: user.uid,
+      reporterUsername: username, // ✅ ใส่ตรงนี้
       reason: selectedReason,
       status: "pending",
       createdAt: serverTimestamp(),

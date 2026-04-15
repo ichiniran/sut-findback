@@ -21,7 +21,7 @@ export interface Post {
   createdAt: string;
   images: string[];
   image: { uri: string } | number;
-  locationImage: string;
+  receiveLocationImage: string;
   category: string;
   latitude?: number;
   longitude?: number;
@@ -101,7 +101,7 @@ export default function LostScreen({
               createdAt: d.createdAt || '',
               images: imageArr,
               image: imageArr.length > 0 ? { uri: imageArr[0] } : PLACEHOLDER,
-              locationImage: d.locationImage || '',
+              receiveLocationImage: d.receiveLocationImage || '',
               category: d.category || '',
               latitude: d.latitude,
               longitude: d.longitude,
@@ -133,7 +133,7 @@ export default function LostScreen({
           type="lost"
           image={item.image}
           images={item.images}
-          locationImage={item.locationImage}
+          receiveLocationImage={item.receiveLocationImage}
           title={item.title}
           detail={item.detail}
           desc={item.desc}

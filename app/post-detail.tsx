@@ -6,16 +6,16 @@ import { getAuth } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image, Linking, Modal,
-    ScrollView,
-    Share,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  Image, Linking, Modal,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -63,7 +63,7 @@ export default function PostDetail() {
   const resolvedDate = params.date || (params.createdAt ? params.createdAt.split('T')[0] : '') || postData?.date || (postData?.createdAt ? postData.createdAt.split('T')[0] : '-');
   const resolvedLatitude = params.latitude || (postData?.latitude ? String(postData.latitude) : '');
   const resolvedLongitude = params.longitude || (postData?.longitude ? String(postData.longitude) : '');
-  const resolvedLocationImage = params.locationImage || postData?.locationImage || null;
+  const resolvedLocationImage = params.receiveLocationImage || postData?.receiveLocationImage || null;
   //const resolvedCurrentStatus = params.currentStatus || postData?.status || 'waiting';
   const [status, setStatus] = useState<'waiting' | 'claimed'>('waiting');
   const isFound = resolvedType === 'found';
@@ -203,7 +203,7 @@ export default function PostDetail() {
           location: resolvedLocation, locationName: resolvedLocationName,
           locationDetail: resolvedLocationDetail, receiveLocation: resolvedReceiveLocation,
           username: resolvedUsername, userId: resolvedUserId, date: resolvedDate,
-          images: itemImages, locationImage: resolvedLocationImage, category: resolvedCategory,
+          images: itemImages, receiveLocationImage: resolvedLocationImage, category: resolvedCategory,
           latitude: resolvedLatitude, longitude: resolvedLongitude, currentStatus: status,
           savedAt: new Date().toISOString(),
         }, { merge: true });
@@ -315,7 +315,7 @@ export default function PostDetail() {
                 location: resolvedLocation, locationName: resolvedLocationName,
                 locationDetail: resolvedLocationDetail, receiveLocation: resolvedReceiveLocation,
                 username: resolvedUsername, userId: resolvedUserId, date: resolvedDate,
-                images: JSON.stringify(itemImages), locationImage: resolvedLocationImage,
+                images: JSON.stringify(itemImages), receiveLocationImage: resolvedLocationImage,
                 category: resolvedCategory, latitude: resolvedLatitude, longitude: resolvedLongitude,
                 currentStatus: status,
               }}
@@ -473,7 +473,7 @@ export default function PostDetail() {
               locationDetail: resolvedLocationDetail,
               receiveLocation: resolvedReceiveLocation,
               images: JSON.stringify(itemImages),
-              locationImage: resolvedLocationImage || '',
+              receiveLocationImage: resolvedLocationImage || '',
               date: resolvedDate,
               latitude: resolvedLatitude,
               longitude: resolvedLongitude,

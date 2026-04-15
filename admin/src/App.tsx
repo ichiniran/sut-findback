@@ -6,19 +6,9 @@ import logo from './assets/logo_sutfindback.png';
 import { auth, db } from './firebase';
 import LoginPage from './login';
 import DashboardPage from './pages/dashboard';
-
-function PostManagementPage() {
-  return <h2>📦 Post Management</h2>;
-}
-
-function ReportsPage() {
-  return <h2>🚩 Reports</h2>;
-}
-
-function UsersPage() {
-  return <h2>👤 User Management</h2>;
-}
-
+import PostManagementPage from './pages/posts';
+import ReportsPage from './pages/reports';
+import UsersPage from './pages/users';
 // ─────────────────────────────────────
 
 export default function App() {

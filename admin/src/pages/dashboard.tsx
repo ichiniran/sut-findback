@@ -2,8 +2,8 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { Calendar, FileText, Flag, LayoutDashboard, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-    Bar, BarChart, Cell, Pie, PieChart,
-    ResponsiveContainer, Tooltip, XAxis, YAxis
+  Bar, BarChart, Cell, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import { db } from "../firebase";
 export default function DashboardPage() {
@@ -220,6 +220,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#a0856a",
     fontWeight: 600,
     backdropFilter: "blur(8px)",
+    alignItems: "center", 
   },
   cardGrid: {
     display: "grid",
