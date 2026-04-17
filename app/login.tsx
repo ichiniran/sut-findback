@@ -2,10 +2,10 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
 import { useState } from "react";
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { app } from "../constants/firebase";
 export default function Login() {
   const [emailOrUsername, setEmailOrUsername] = useState("");
@@ -36,6 +36,56 @@ export default function Login() {
       }
     }
   };
+  const handleForgotPassword = async () => {
+  try {
+    if (!emailOrUsername) {
+      alert("กรุณากรอก Email");
+      return;
+    }
+
+    let email = emailOrUsername;
+    const db = getFirestore(app);
+
+    // 🔥 ถ้าเป็น username → หา email
+    if (!emailOrUsername.includes("@")) {
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", emailOrUsername)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert("ไม่พบ username นี้");
+        return;
+      }
+
+      email = snapshot.docs[0].data().email;
+    }
+
+    // 🔥 เช็คว่า email มีใน Firestore ไหม
+    const q2 = query(
+      collection(db, "users"),
+      where("email", "==", email)
+    );
+
+    const snapshot2 = await getDocs(q2);
+
+    if (snapshot2.empty) {
+      alert("ไม่พบอีเมลนี้ในระบบ");
+      return;
+    }
+
+    // ✅ ค่อยส่ง reset
+    const auth = getAuth(app);
+    await sendPasswordResetEmail(auth, email);
+
+    alert("ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว");
+
+  } catch (error: any) {
+    console.log(error);
+    alert(error.message);
+  }
+};
   return (
     <LinearGradient
       colors={["#FFFAF5", "#ffe6d0"]}
@@ -51,71 +101,117 @@ export default function Login() {
         />
       </View>
 
+
       {/* Content */}
-       <BlurView intensity={25} tint="light" style={styles.card}>
-
-        <Text style={styles.title}>Login</Text>
-
-
-
-        <TextInput
-          placeholder="Email or Username"
-          placeholderTextColor="#777"
-          style={styles.input}
-          autoCapitalize="none"
-          onChangeText={setEmailOrUsername}
-          value={emailOrUsername}
-        />
-
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#777"
-          secureTextEntry
-          style={styles.input}
-          onChangeText={setPassword}
-          value={password}
-        />
-
-        <Text style={styles.forgot}>forgot Password?</Text>
-
-        <TouchableOpacity 
-          style={styles.loginButton} 
-          onPress={handleLogin}
-        >
-          <Text style={styles.loginText}>Login</Text>
+      {Platform.OS === "ios" ? (
+        <BlurView intensity={25} tint="light" style={styles.card}>
+          {/* ...content... */}
+          <Text style={styles.title}>Login</Text>
+          <TextInput
+            placeholder="Email or Username"
+            placeholderTextColor="#777"
+            style={styles.input}
+            autoCapitalize="none"
+            onChangeText={setEmailOrUsername}
+            value={emailOrUsername}
+          />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#777"
+            secureTextEntry
+            style={styles.input}
+            onChangeText={setPassword}
+            value={password}
+          />
+          <TouchableOpacity onPress={handleForgotPassword}>
+          <Text style={styles.forgot}>forgot Password?</Text>
         </TouchableOpacity>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.line}/>
-          <Text style={styles.dividerText}>Or Login with</Text>
-          <View style={styles.line}/>
-        </View>
-
-        <View style={styles.social}>
-        
-        {/* Google */}
-        <TouchableOpacity style={styles.socialBtn}>
-        <Image
-          source={require('../assets/images/google.png')} 
-          style={{ width: 24, height: 24 }}
-          resizeMode="contain"
-        />
-      </TouchableOpacity>
-
-        {/* Apple */}
-        <TouchableOpacity style={styles.socialBtn}>
-          <FontAwesome name="apple" size={24} color="black" />
-        </TouchableOpacity>
-
-      </View>
-        <Text style={styles.register}>
-          Don't have an account?{' '}
-          <Text style={styles.create} onPress={() => router.push("/regis")}>
-            Create New Account
+          <TouchableOpacity 
+            style={styles.loginButton} 
+            onPress={handleLogin}
+          >
+            <Text style={styles.loginText}>Login</Text>
+          </TouchableOpacity>
+          <View style={styles.dividerContainer}>
+            <View style={styles.line}/>
+            <Text style={styles.dividerText}>Or Login with</Text>
+            <View style={styles.line}/>
+          </View>
+          <View style={styles.social}>
+            {/* Google */}
+            <TouchableOpacity style={styles.socialBtn}>
+              <Image
+                source={require('../assets/images/google.png')} 
+                style={{ width: 24, height: 24 }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            {/* Apple */}
+            <TouchableOpacity style={styles.socialBtn}>
+              <FontAwesome name="apple" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.register}>
+            Don't have an account?{' '}
+            <Text style={styles.create} onPress={() => router.push("/regis")}>
+              Create New Account
+            </Text>
           </Text>
-        </Text>
-
-      </BlurView>
+        </BlurView>
+      ) : (
+        <View style={[styles.cardand,]}> 
+          {/* ...content... */}
+          <Text style={styles.title}>Login</Text>
+          <TextInput
+            placeholder="Email or Username"
+            placeholderTextColor="#777"
+            style={styles.input}
+            autoCapitalize="none"
+            onChangeText={setEmailOrUsername}
+            value={emailOrUsername}
+          />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#777"
+            secureTextEntry
+            style={styles.input}
+            onChangeText={setPassword}
+            value={password}
+          />
+          <Text style={styles.forgot}>forgot Password?</Text>
+          <TouchableOpacity 
+            style={styles.loginButton} 
+            onPress={handleLogin}
+          >
+            <Text style={styles.loginText}>Login</Text>
+          </TouchableOpacity>
+          <View style={styles.dividerContainer}>
+            <View style={styles.line}/>
+            <Text style={styles.dividerText}>Or Login with</Text>
+            <View style={styles.line}/>
+          </View>
+          <View style={styles.social}>
+            {/* Google */}
+            <TouchableOpacity style={styles.socialBtn}>
+              <Image
+                source={require('../assets/images/google.png')} 
+                style={{ width: 24, height: 24 }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            {/* Apple */}
+            <TouchableOpacity style={styles.socialBtn}>
+              <FontAwesome name="apple" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.register}>
+            Don't have an account?{' '}
+            <Text style={styles.create} onPress={() => router.push("/regis")}>
+              Create New Account
+            </Text>
+          </Text>
+        </View>
+      )}
 
     </LinearGradient>
   );
@@ -253,6 +349,18 @@ const styles = StyleSheet.create({
 
   // shadow Android
   elevation:10
+},
+  cardand:{
+  height:"65%",
+  width:"100%",
+  marginTop:10,
+  padding:30,
+  borderRadius:40,
+  backgroundColor:"rgba(255, 255, 255, 0.47)",
+  borderWidth:1,
+  borderColor:"rgba(145, 145, 145, 0.1)",
+  overflow:"hidden",
+ 
 },
 
 });

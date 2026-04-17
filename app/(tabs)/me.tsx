@@ -2,74 +2,102 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getAuth, signOut } from 'firebase/auth';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUser } from '../../components/UserContext';
 import { app } from '../../constants/firebase';
+
 export default function MeScreen() {
   const router = useRouter();
   const menuItems = ['จัดการบัญชี', 'รายการที่บันทึกไว้', 'โพสต์ของฉัน', 'การตั้งค่า'];
   const { user, loading } = useUser();
   console.log('user photoURL:', user?.photoURL);
-  const [postCount, setPostCount] = useState(0);
-  const [savedCount, setSavedCount] = useState(0);
+  const [postCount, setPostCount] = useState<number | null>(null); // ✅ null = ยังไม่โหลด
+  const [savedCount, setSavedCount] = useState<number | null>(null);
 
   useFocusEffect(
-  useCallback(() => {
-    if (!user?.uid) return;
-    let ignore = false;
-    const fetchCounts = async () => {
-  try {
-    const db = getFirestore(app);
-    const foundCol = collection(db, `users/${user.uid}/found_posts`);
-    const lostCol = collection(db, `users/${user.uid}/lost_posts`);
-    const savedFoundCol = collection(db, `users/${user.uid}/saved_found`);
-    const savedLostCol = collection(db, `users/${user.uid}/saved_lost`);
+    useCallback(() => {
+      if (!user?.uid) return;
 
-    const [foundSnap, lostSnap, savedFoundSnap, savedLostSnap] = await Promise.all([
-      getDocs(foundCol),
-      getDocs(lostCol),
-      getDocs(savedFoundCol),
-      getDocs(savedLostCol),
-    ]);
+      let ignore = false;
 
-    if (!ignore) {
-      setPostCount(foundSnap.size + lostSnap.size);
-
-      // ✅ เช็คว่าโพสต์ที่ bookmark ยังมีอยู่ไหม
-      const { getDoc, doc } = await import('firebase/firestore');
-      const checkFound = await Promise.all(savedFoundSnap.docs.map(async d => {
-        const data = d.data();
+      const fetchCounts = async () => {
         try {
-          const snap = await getDoc(doc(db, 'users', data.userId, 'found_posts', data.postId));
-          return snap.exists();
-        } catch { return false; }
-      }));
-      const checkLost = await Promise.all(savedLostSnap.docs.map(async d => {
-        const data = d.data();
-        try {
-          const snap = await getDoc(doc(db, 'users', data.userId, 'lost_posts', data.postId));
-          return snap.exists();
-        } catch { return false; }
-      }));
+          const db = getFirestore(app);
 
-      const validSaved = checkFound.filter(Boolean).length + checkLost.filter(Boolean).length;
-      setSavedCount(validSaved); // ✅ นับเฉพาะที่ยังมีอยู่
-    }
-  } catch {
-    if (!ignore) { setPostCount(0); setSavedCount(0); }
-  }
-};
-    fetchCounts();
-    return () => { ignore = true; };
-  }, [user?.uid])
-);
+          //  นับโพสต์จาก flat collection
+          const postsSnap = await getDocs(
+            query(
+              collection(db, 'posts'),
+              where('userId', '==', user.uid)
+            )
+          );
+
+          // ดึง saved (ยังอยู่ใน users เหมือนเดิม)
+          const savedFoundCol = collection(db, 'users', user.uid, 'saved_found');
+          const savedLostCol = collection(db, 'users', user.uid, 'saved_lost');
+
+          const [savedFoundSnap, savedLostSnap] = await Promise.all([
+            getDocs(savedFoundCol),
+            getDocs(savedLostCol),
+          ]);
+
+          // เช็คว่าโพสต์ที่ bookmark ยังมีอยู่ไหม (เช็คใน posts)
+          const checkFound = await Promise.all(
+            savedFoundSnap.docs.map(async d => {
+              const data = d.data();
+              try {
+                const snap = await getDoc(doc(db, 'posts', data.postId));
+                return snap.exists();
+              } catch {
+                return false;
+              }
+            })
+          );
+
+          const checkLost = await Promise.all(
+            savedLostSnap.docs.map(async d => {
+              const data = d.data();
+              try {
+                const snap = await getDoc(doc(db, 'posts', data.postId));
+                return snap.exists();
+              } catch {
+                return false;
+              }
+            })
+          );
+
+          const validSaved =
+            checkFound.filter(Boolean).length +
+            checkLost.filter(Boolean).length;
+
+          if (!ignore) {
+            setPostCount(postsSnap.size);
+            setSavedCount(validSaved);
+          } 
+
+        } catch (e) {
+          console.log('ERROR fetchCounts:', e);
+          /*if (!ignore) {
+            setPostCount(0);
+            setSavedCount(0);
+          }*/
+        }
+      };
+
+      fetchCounts();
+
+      return () => { ignore = true; };
+
+    }, [user?.uid])
+  );
+
   const handleMenuPress = (item: string) => {
     if (item === 'จัดการบัญชี') router.push('/account-settings');
     else if (item === 'การตั้งค่า') router.push('/settings');
-    else if (item === 'โพสต์ของฉัน') router.push('/my-posts');
+    else if (item === 'โพสต์ของฉัน') router.push('/my-posts-screen');
     else if (item === 'รายการที่บันทึกไว้') router.push('/saved');
   };
 
@@ -122,7 +150,7 @@ export default function MeScreen() {
           {/* Info */}
           <View>
             <Text style={styles.userId}>{user?.username ? user.username : "-"}</Text>
-            <Pressable style={styles.editBtn} onPress={() => router.push('/editprofile')}>
+            <Pressable style={styles.editBtn} onPress={() => router.push('/edit-profile')}>
               <Text style={styles.editText}>แก้ไขโปรไฟล์</Text>
               <Ionicons name="pencil-outline" size={14} color="#6E4D31" />
             </Pressable>
@@ -131,15 +159,23 @@ export default function MeScreen() {
 
         {/* STAT CARDS */}
         <View style={styles.statsRow}>
-          <Pressable style={styles.statCard} onPress={() => router.push('/my-posts')}>
+        <Pressable style={styles.statCard} onPress={() => router.push('/my-posts-screen')}>
+          {postCount === null ? (
+            <View style={styles.skelNumber} /> // ✅ skeleton แทนเลข
+          ) : (
             <Text style={styles.statNumber}>{postCount}</Text>
-            <Text style={styles.statLabel}>โพสต์ของฉัน</Text>
-          </Pressable>
-          <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
+          )}
+          <Text style={styles.statLabel}>โพสต์ของฉัน</Text>
+        </Pressable>
+        <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
+          {savedCount === null ? (
+            <View style={styles.skelNumber} />
+          ) : (
             <Text style={styles.statNumber}>{savedCount}</Text>
-            <Text style={styles.statLabel}>รายการที่บันทึก</Text>
-          </Pressable>
-        </View>
+          )}
+          <Text style={styles.statLabel}>รายการที่บันทึก</Text>
+        </Pressable>
+      </View>
       </View>
 
       {/* MENU */}
@@ -326,4 +362,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#f33939',
   },
+  skelNumber: {
+  width: 32,
+  height: 24,
+  borderRadius: 6,
+  backgroundColor: '#ffffff',
+  marginBottom: 4,
+},
 });

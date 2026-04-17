@@ -15,7 +15,7 @@ interface PostCardProps {
   type?: 'found' | 'lost';
   image: { uri: string } | number;
   images?: string[];
-  locationImage?: string;   // รูปจุดฝาก
+  receiveLocationImage?: string;   // รูปจุดฝาก
   title: string;
   detail?: string;
   desc?: string;
@@ -36,7 +36,7 @@ interface PostCardProps {
 export default function PostCard(props: PostCardProps) {
   const {
     postId, userId, type = 'found',
-    image, images, locationImage,
+    image, images, receiveLocationImage,
     title, detail, desc,
     location, locationName, locationDetail, receiveLocation,
     user, username, date, createdAt,
@@ -59,6 +59,7 @@ export default function PostCard(props: PostCardProps) {
         postId: postId || '',
         userId: userId || '',
         type,
+        fromTab: type,
         title: title || '',
         detail: detail || desc || '',
         location: location || '',
@@ -71,7 +72,7 @@ export default function PostCard(props: PostCardProps) {
         createdAt: createdAt || '',
         images: images && images.length > 0 ? JSON.stringify(images) : '',
         imageUri: thumbUri || '',
-        locationImage: locationImage || '',   // ส่งรูปจุดฝาก
+        receiveLocationImage: receiveLocationImage || '',   // ส่งรูปจุดฝาก
         category: category || '',
         latitude: latitude != null ? String(latitude) : '',
         longitude: longitude != null ? String(longitude) : '',

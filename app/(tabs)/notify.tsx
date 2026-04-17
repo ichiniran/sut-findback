@@ -1,87 +1,170 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+
+import {
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+import { useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
+import { collection, doc, getFirestore, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
+import { app } from '../../constants/firebase';
 
 export default function NotifyScreen() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const router = useRouter();
+  const db = getFirestore(app);
 
-  // 🔥 MOCK DATA (พร้อมใช้จริง)
-  const [notifications, setNotifications] = useState([
-    {
-      id: '1',
-      title: 'มีการรับของแล้ว',
-      desc: 'โพสต์นี้ของคุณมีคนมารับไปแล้ว',
-      avatar: 'https://i.pravatar.cc/100',
-      itemImage: 'https://picsum.photos/100',
-      isRead: false,
-      createdAt: Date.now(),
-    },
-    {
-      id: '2',
-      title: 'มีคนพบของคุณ',
-      desc: 'มีผู้ใช้แจ้งว่าพบของที่คุณทำหาย',
-      avatar: 'https://i.pravatar.cc/101',
-      itemImage: 'https://picsum.photos/101',
-      isRead: true,
-      createdAt: Date.now() - 10000,
-    },
-  ]);
+  // 🔥 โหลด notification realtime
+  useEffect(() => {
+    const auth = getAuth(app);
+    const user = auth.currentUser;
 
-  // 🔥 กดแล้ว mark as read
-      const handlePress = (id: string) => {
-      setNotifications(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, isRead: true } : item
-        )
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'users', user.uid, 'notifications'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setNotifications(data);
+    });
+
+    return () => unsub();
+  }, []);
+
+  // 🔥 กด notification → ไปหน้า PostDetail พร้อมส่ง postId + type
+  const handlePress = async (item: any) => {
+    const auth = getAuth(app);
+    const user = auth.currentUser;
+
+    if (!user) return;
+
+    try {
+      // mark as read
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notifications', item.id),
+        { isRead: true }
       );
-    };
+
+  
+      router.push({
+        pathname: '/post-detail',
+        params: {
+          postId: item.postId,
+          type: item.type || 'found', 
+          title: item.postTitle || '',
+          detail: item.detail || '',
+          location: item.location || '',
+          locationName: item.locationName || '',
+          locationDetail: item.locationDetail || '',
+          receiveLocation: item.receiveLocation || '',
+          username: item.username || '',
+          userId: item.userId || '',
+          date: item.date || '',
+          images: item.images || '',
+          category: item.category || '',
+          latitude: item.latitude || '',
+          longitude: item.longitude || '',
+          currentStatus: item.currentStatus || '',
+              },
+      });
+
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  //  format เวลา
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+
+    const now = new Date();
+    const time = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diff = Math.floor((now.getTime() - time.getTime()) / 1000);
+
+    if (diff < 60) return 'เมื่อสักครู่';
+    if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ชั่วโมงที่แล้ว`;
+
+    return `${Math.floor(diff / 86400)} วันที่แล้ว`;
+  };
+
   return (
     <View style={styles.container}>
 
       {/* HEADER */}
       <LinearGradient
         colors={['#FFFAF5', '#FFFAF5']}
-        locations={[0.5, 1]}
         style={styles.header}
       >
         <Text style={styles.headerTitle}>การแจ้งเตือน</Text>
       </LinearGradient>
 
-      {/* LIST */}
-      <FlatList
-        data={notifications.sort((a, b) => b.createdAt - a.createdAt)}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          
-          <TouchableOpacity
-            style={[
-              styles.item,
-              !item.isRead && styles.unreadItem // 👈 unread สีต่าง
-            ]}
-            onPress={() => handlePress(item.id)}
-          >
+      {/* EMPTY */}
+      {notifications.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>ยังไม่มีการแจ้งเตือน</Text>
+        </View>
+      ) : (
 
-            {/* Avatar */}
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
 
-            {/* Text */}
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.desc}>{item.desc}</Text>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.item,
+                !item.isRead && styles.unreadItem
+              ]}
+              onPress={() => handlePress(item)}
+            >
 
-            {/* Image ขวา */}
-            <Image source={{ uri: item.itemImage }} style={styles.itemImage} />
+              {/* ✅ รูปโพสต์ (ซ้าย) */}
+              <Image
+                source={{ uri: item.itemImage || 'https://via.placeholder.com/100' }}
+                style={styles.image}
+              />
 
-            {/* 🔴 จุด unread */}
-            {!item.isRead && <View style={styles.dot} />}
+              {/* TEXT */}
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>
+                  {item.title || 'มีการแจ้งเตือน'}
+                </Text>
+                <Text style={styles.desc}>
+                  {item.desc}
+                </Text>
 
-          </TouchableOpacity>
+                {/* เวลา */}
+                <Text style={styles.time}>
+                  {formatTime(item.createdAt)}
+                </Text>
+              </View>
 
-        )}
-      />
+              
+              {!item.isRead && <View style={styles.dot} />}
+
+            </TouchableOpacity>
+
+          )}
+        />
+
+      )}
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -103,7 +186,7 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E0D6CC',
@@ -111,13 +194,13 @@ const styles = StyleSheet.create({
   },
 
   unreadItem: {
-    backgroundColor: '#FFF3E6', // 👈 unread สีอ่อน
+    backgroundColor: '#FFF3E6',
   },
 
-  avatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 50,
+  image: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
     marginRight: 12,
   },
 
@@ -137,19 +220,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  itemImage: {
-    width: 45,
-    height: 45,
-    borderRadius: 8,
+  time: {
+    fontSize: 11,
+    color: '#bbb',
+    marginTop: 4,
   },
 
   dot: {
     width: 8,
     height: 8,
     borderRadius: 10,
-    backgroundColor: '#FBAA58',
+    backgroundColor: '#F97316',
     position: 'absolute',
-    right: 10,
-    top: 10,
+    right: 12,
+    top: 12,
+  },
+
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    color: '#999',
+    fontSize: 14,
   },
 });

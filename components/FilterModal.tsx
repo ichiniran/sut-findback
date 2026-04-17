@@ -1,8 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import {
-    Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View
-} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const LOCATIONS = [
   'ทั้งหมด', 'อาคารเรียนรวม 1', 'อาคารเรียนรวม 2', 'อาคารเรียนรวม 3',
@@ -43,11 +41,31 @@ export default function FilterModal({ visible, onClose, onApply }: Props) {
     onApply({ category, location, dateFrom: useDateRange ? dateFrom : '' });
     onClose();
   };
+const translateY = useRef(new Animated.Value(300)).current;
+const opacity = useRef(new Animated.Value(0)).current;
+
+useEffect(() => {
+  if (visible) {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+  } else {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 300, duration: 250, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start();
+  }
+}, [visible]);
+
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
+    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
+        <View style={styles.container}>
+     <Animated.View style={[styles.backdrop, { opacity }]} />
+   
       <View style={styles.sheet}>
+           <View style={styles.handle} />
         <ScrollView showsVerticalScrollIndicator={false}>
 
           {/* Header */}
@@ -130,16 +148,25 @@ export default function FilterModal({ visible, onClose, onApply }: Props) {
           </TouchableOpacity>
         </View>
       </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  backdrop: {
+  ...StyleSheet.absoluteFillObject,
+  backgroundColor: 'rgba(0,0,0,0.3)',
+},
   sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, maxHeight: '80%',
-  },
+  backgroundColor: '#fff',
+  borderTopLeftRadius: 24,
+  borderTopRightRadius: 24,
+  paddingTop: 12,
+  paddingHorizontal: 20,
+  paddingBottom: 20,
+  maxHeight: '80%',
+},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   title: { fontSize: 16, fontWeight: '700', color: '#333' },
   sectionLabel: { fontSize: 14, fontWeight: '600', color: '#5A4633', marginTop: 16, marginBottom: 10 },
@@ -170,4 +197,16 @@ const styles = StyleSheet.create({
   btnClearText: { fontSize: 15, color: '#555', fontWeight: '600' },
   btnApply: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
   btnApplyText: { fontSize: 15, color: '#fff', fontWeight: '600' },
+  container: {
+  flex: 1,
+  justifyContent: 'flex-end', // 🔥 ทำให้มันติดล่าง
+},
+handle: {
+  width: 40,
+  height: 4,
+  backgroundColor: '#ddd',
+  borderRadius: 2,
+  alignSelf: 'center',
+  marginBottom: 12,
+},
 });

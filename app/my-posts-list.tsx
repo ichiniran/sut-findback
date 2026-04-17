@@ -1,10 +1,10 @@
 import { useFocusEffect } from 'expo-router';
+import { getAuth } from 'firebase/auth';
 import { collection, getDocs, getFirestore, orderBy, query, where } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { FlatList } from 'react-native';
-import { FilterOptions } from '../../components/FilterModal';
-import PostCard from '../../components/PostCard';
-import { app } from '../../constants/firebase';
+import PostCard from '../components/PostCard';
+import { app } from '../constants/firebase';
 
 export interface Post {
   id: string;
@@ -28,57 +28,27 @@ export interface Post {
   currentStatus: string;
 }
 
-const PLACEHOLDER = require('../../assets/images/noimage.png');
+const PLACEHOLDER = require('../assets/images/noimage.png');
 
-const STANDARD_CATEGORIES = [
-  'กระเป๋า / กระเป๋าสตางค์', 'บัตรนักศึกษา / บัตรประชาชน',
-  'โทรศัพท์ / อุปกรณ์อิเล็กทรอนิกส์', 'เงิน', 'กุญแจ', 'เครื่องประดับ', 'เสื้อผ้า',
-];
-const STANDARD_LOCATIONS = [
-  'อาคารเรียนรวม 1', 'อาคารเรียนรวม 2', 'อาคารเรียนรวม 3',
-  'อาคารรัฐสีมาคุณากร', 'หอพักนักศึกษา', 'โรงอาหาร',
-];
-
-export default function LostScreen({
-  searchQuery = '',
-  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' },
-}: {
-  searchQuery?: string;
-  filters?: FilterOptions;
-}) {
+export default function MyPostsList({ type }: { type: 'found' | 'lost' }) {
   const [posts, setPosts] = useState<Post[]>([]);
-
-  const filteredPosts = posts.filter(post => {
-    const matchSearch =
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.detail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.locationName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchCategory =
-      filters.category === 'ทั้งหมด' ? true
-      : filters.category === 'อื่น ๆ' ? !STANDARD_CATEGORIES.includes(post.category)
-      : post.category === filters.category;
-
-    const matchLocation =
-      filters.location === 'ทั้งหมด' ? true
-      : filters.location === 'อื่น ๆ' ? !STANDARD_LOCATIONS.includes(post.locationName)
-      : post.locationName === filters.location;
-
-    return matchSearch && matchCategory && matchLocation;
-  });
 
   useFocusEffect(
     useCallback(() => {
       const fetchPosts = async () => {
         try {
+          const auth = getAuth(app);
+          const user = auth.currentUser;
+          if (!user) return;
+
           const db = getFirestore(app);
 
-          // ✅ 1 round trip — flat collection
+          // ✅ flat collection — query by userId + type
           const snap = await getDocs(
             query(
               collection(db, 'posts'),
-              where('type', '==', 'lost'),
-              where('status', '==', 'waiting'),
+              where('userId', '==', user.uid),
+              where('type', '==', type),
               orderBy('createdAt', 'desc'),
             )
           );
@@ -88,7 +58,7 @@ export default function LostScreen({
             const imageArr: string[] = Array.isArray(d.images) ? d.images : [];
             return {
               id: docSnap.id,
-              userId: d.userId || '-',
+              userId: d.userId || user.uid,
               title: d.category || '-',
               desc: d.detail || '-',
               detail: d.detail || '-',
@@ -96,7 +66,7 @@ export default function LostScreen({
               locationName: d.locationName || d.location || '-',
               locationDetail: d.locationDetail || '',
               receiveLocation: d.receiveLocation || '',
-              username: d.username || '-',   // denormalized ไม่ต้อง fetch แยก
+              username: d.username || '-',
               date: d.date || (d.createdAt ? d.createdAt.split('T')[0] : '-'),
               createdAt: d.createdAt || '',
               images: imageArr,
@@ -111,26 +81,27 @@ export default function LostScreen({
 
           setPosts(data);
         } catch (e) {
-          console.log('FIRESTORE ERROR lost:', e)
+          console.log('FIRESTORE ERROR myposts:', e)
           setPosts([]);
         }
       };
 
       fetchPosts();
-    }, [])
+    }, [type])
   );
 
   return (
     <FlatList
-      data={filteredPosts}
+      data={posts}
       numColumns={2}
+      columnWrapperStyle={{ justifyContent: 'space-between' }}
       keyExtractor={item => item.id}
       contentContainerStyle={{ paddingHorizontal: 10 }}
       renderItem={({ item }) => (
         <PostCard
           postId={item.id}
           userId={item.userId}
-          type="lost"
+          type={type}
           image={item.image}
           images={item.images}
           receiveLocationImage={item.receiveLocationImage}
