@@ -118,14 +118,9 @@ export default function ChangePasswordScreen() {
 
           {/* BUTTON */}
           <Pressable style={{ borderRadius: 16 }} onPress={handleChangePassword}>
-            <LinearGradient
-              colors={['#FFD6A5', '#F4A261']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.submitButton}
-            >
+            <View style={styles.submitButton}     >
               <Text style={styles.submitText}>บันทึก</Text>
-            </LinearGradient>
+            </View>
           </Pressable>
         </View>
 
@@ -144,7 +139,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    //backgroundColor: 'rgba(255,255,255,0.4)',
     overflow: 'hidden',
   },
   backButton: {
@@ -207,6 +202,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,
+    backgroundColor: '#ff8c39',
   },
   submitText: {
     fontSize: 15,

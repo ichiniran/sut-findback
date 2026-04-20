@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -25,7 +24,7 @@ export default function AccountSettingsScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
         {/* 🔥 GLASS HEADER */}
-        <BlurView intensity={60} tint="light" style={styles.header}>
+        <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={22} color="#6B4D34" />
           </Pressable>
@@ -33,7 +32,7 @@ export default function AccountSettingsScreen() {
           <Text style={styles.headerTitle}>จัดการบัญชี</Text>
 
           <View style={{ width: 40 }} />
-        </BlurView>
+        </View>
 
         {/* CONTENT */}
         <View style={styles.content}>
@@ -67,14 +66,14 @@ const styles = StyleSheet.create({
   header: {
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: 20,
+    
     paddingHorizontal: 10,
     height: 60,
 
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.4)',
+   
     overflow: 'hidden',
   },
 

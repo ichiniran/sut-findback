@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
 
-    backgroundColor: 'rgba(255,255,255,0.4)',
+   // backgroundColor: 'rgba(255,255,255,0.4)',
     overflow: 'hidden',
   },
 

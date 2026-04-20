@@ -2,8 +2,8 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { getAuth, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
-import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
+import { getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, getFirestore, query, where } from "firebase/firestore";
 import { useState } from "react";
 import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { app } from "../constants/firebase";
@@ -12,30 +12,73 @@ export default function Login() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    try {
-      let email = emailOrUsername;
-      // ถ้าไม่ใช่ email ให้ค้นหา email จาก username ใน Firestore
-      if (!emailOrUsername.includes("@")) {
-        const db = getFirestore(app);
-        const q = query(collection(db, "users"), where("username", "==", emailOrUsername));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          email = querySnapshot.docs[0].data().email;
-        } else {
-          alert("ไม่พบ username นี้");
-          return;
-        }
-      }
-      const auth = getAuth(app);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // ล็อกอินสำเร็จ ไปหน้า tabs
-      router.replace("/(tabs)");
-    } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
+  try {
+    let email = emailOrUsername;
+    const db = getFirestore(app);
+
+    // ถ้าไม่ใช่ email → หา email จาก username
+    if (!emailOrUsername.includes("@")) {
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", emailOrUsername)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        email = querySnapshot.docs[0].data().email;
+      } else {
+        alert("ไม่พบ username นี้");
+        return;
       }
     }
-  };
+
+    const auth = getAuth(app);
+
+    // login
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const user = userCredential.user;
+
+    // ดึงข้อมูล user จาก Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+
+      // ถ้าโดนแบน
+      if (data.banned === true) {
+        await signOut(auth);
+
+        alert("บัญชีของคุณถูกระงับการใช้งาน");
+        return;
+      }
+    } else {
+      // ถ้าไม่มีข้อมูลใน Firestore (กรณีนี้ไม่น่าจะเกิดขึ้นเพราะเราสร้าง user ใน Firestore ตอนสมัครแล้ว แต่กันเหนียวไว้)
+      await signOut(auth);
+      alert("ไม่พบข้อมูลผู้ใช้");
+      return;
+    }
+
+    // ผ่าน → เข้าแอป
+    router.replace("/(tabs)");
+
+  } catch (error: any) {
+    let message = "เกิดข้อผิดพลาด";
+
+    if (error.code === "auth/invalid-credential") {
+      message = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+    } else if (error.code === "auth/invalid-email") {
+      message = "รูปแบบอีเมลไม่ถูกต้อง";
+    }
+
+    alert(message);
+  }
+};
   const handleForgotPassword = async () => {
   try {
     if (!emailOrUsername) {
@@ -46,7 +89,7 @@ export default function Login() {
     let email = emailOrUsername;
     const db = getFirestore(app);
 
-    // 🔥 ถ้าเป็น username → หา email
+    // ถ้าเป็น username → หา email
     if (!emailOrUsername.includes("@")) {
       const q = query(
         collection(db, "users"),
@@ -62,7 +105,7 @@ export default function Login() {
       email = snapshot.docs[0].data().email;
     }
 
-    // 🔥 เช็คว่า email มีใน Firestore ไหม
+    //  เช็คว่า email มีใน Firestore ไหม
     const q2 = query(
       collection(db, "users"),
       where("email", "==", email)
@@ -75,7 +118,7 @@ export default function Login() {
       return;
     }
 
-    // ✅ ค่อยส่ง reset
+    //  ส่ง reset
     const auth = getAuth(app);
     await sendPasswordResetEmail(auth, email);
 

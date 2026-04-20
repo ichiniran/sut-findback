@@ -85,10 +85,21 @@ export default function PostCard(props: PostCardProps) {
     <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.88}>
       <View style={styles.cardInner}>
         {thumbUri ? (
-          <Image source={{ uri: thumbUri }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <Image source={image as number} style={styles.image} resizeMode="cover" />
-        )}
+        <Image
+          source={{ uri: thumbUri }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.imagePlaceholder}>
+          <Ionicons
+            name="image-outline"
+            size={48}
+            color="rgba(63,63,63,0.4)"
+          />
+          <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
+        </View>
+      )}
 
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
@@ -130,6 +141,19 @@ const styles = StyleSheet.create({
   },
   cardInner: { borderRadius: 15, overflow: 'hidden' },
   image: { width: '100%', height: 150 },
+  imagePlaceholder: {
+  width: '100%',
+  height: 150,
+  backgroundColor: '#f6f6f6',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+noImageText: {
+  marginTop: 6,
+  fontSize: 12,
+  color: '#999',
+},
   cardBody: { padding: 10 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#5A4633' },
   cardDesc: { fontSize: 12, color: '#777', marginVertical: 3 },
@@ -137,7 +161,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 20, marginTop: 5,
+    borderRadius: 20, marginTop: 5,marginRight: 8, 
   },
   locationText: { fontSize: 12, marginLeft: 4, color: '#fff' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },

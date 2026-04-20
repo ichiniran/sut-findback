@@ -1,7 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
+import { collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-
 import {
+  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -9,10 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
-import { useRouter } from 'expo-router';
-import { getAuth } from 'firebase/auth';
-import { collection, doc, getFirestore, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
 import { app } from '../../constants/firebase';
 
 export default function NotifyScreen() {
@@ -43,6 +43,26 @@ export default function NotifyScreen() {
     return () => unsub();
   }, []);
 
+    //ฟ้งก์ชันลบ notification
+      const handleDelete = (id: string) => {
+        Alert.alert('ลบการแจ้งเตือน', 'ต้องการลบการแจ้งเตือนนี้หรือไม่?', [
+          { text: 'ยกเลิก', style: 'cancel' },
+          {
+            text: 'ลบ',
+            style: 'destructive',
+            onPress: async () => {
+              const auth = getAuth(app);
+              const user = auth.currentUser;
+              if (!user) return;
+              await deleteDoc(doc(db, 'users', user.uid, 'notifications', id));
+            },
+          },
+        ]);
+      };
+
+
+
+
   // 🔥 กด notification → ไปหน้า PostDetail พร้อมส่ง postId + type
   const handlePress = async (item: any) => {
     const auth = getAuth(app);
@@ -57,7 +77,16 @@ export default function NotifyScreen() {
         { isRead: true }
       );
 
-  
+      if (!item.postId) return;
+      const postSnap = await getDoc(doc(db, 'posts', item.postId));
+      if (!postSnap.exists() || postSnap.data()?.status === 'rejected') {
+      Alert.alert(
+        'ไม่พบโพสต์',
+        'โพสต์นี้ถูกลบไปแล้ว',
+        [{ text: 'ตกลง', style: 'cancel' }]
+      );
+      return;
+    }
       router.push({
         pathname: '/post-detail',
         params: {
@@ -105,7 +134,7 @@ export default function NotifyScreen() {
 
       {/* HEADER */}
       <LinearGradient
-        colors={['#FFFAF5', '#FFFAF5']}
+        colors={['#FFFAF5', '#ffffff']}
         style={styles.header}
       >
         <Text style={styles.headerTitle}>การแจ้งเตือน</Text>
@@ -124,18 +153,37 @@ export default function NotifyScreen() {
           renderItem={({ item }) => (
 
             <TouchableOpacity
-              style={[
-                styles.item,
-                !item.isRead && styles.unreadItem
-              ]}
+              style={[styles.item, !item.isRead && styles.unreadItem]}
               onPress={() => handlePress(item)}
+              onLongPress={() => handleDelete(item.id)}
+              delayLongPress={400}
             >
 
               {/* ✅ รูปโพสต์ (ซ้าย) */}
+              {item.itemImage?.trim() ? (
               <Image
-                source={{ uri: item.itemImage || 'https://via.placeholder.com/100' }}
+                source={{ uri: item.itemImage }}
                 style={styles.image}
+                resizeMode="cover"
               />
+            ) : item.type === 'report_reviewed' ? (
+              // notification แจ้งเตือน report → แสดงธง
+              <View style={styles.imagePlaceholder}>
+                <Ionicons
+                  name="flag"
+                  size={28}
+                  color="#F97316"
+                />
+              </View>
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons
+                  name="image-outline"
+                  size={36}
+                  color="rgba(63, 63, 63, 0.4)"
+                />
+              </View>
+            )}
 
               {/* TEXT */}
               <View style={styles.textContainer}>
@@ -175,6 +223,7 @@ const styles = StyleSheet.create({
     paddingTop: 70,
     paddingBottom: 15,
     paddingHorizontal: 20,
+    borderBottomWidth: 1, borderBottomColor: '#E0D6CC',
   },
 
   headerTitle: {
@@ -204,6 +253,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
+  imagePlaceholder: {
+  width: 50,
+  height: 50,
+  borderRadius: 12,
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: 12,
+},
   textContainer: {
     flex: 1,
   },

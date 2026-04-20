@@ -1,11 +1,11 @@
-
 import {
-    collection,
-    doc,
-    onSnapshot,
-    Timestamp,
-    updateDoc,
+  collection,
+  doc,
+  onSnapshot,
+  Timestamp,
+  updateDoc,
 } from "firebase/firestore";
+import { Search, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 
@@ -174,8 +174,10 @@ export default function UsersPage() {
 
       {/* Header */}
       <div style={s.header}>
-        <div>
-          <h1 style={s.title}>👤 User Management</h1>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
+             <Users size={24} /> User Management
+          </h1>
           <p style={s.subtitle}>จัดการผู้ใช้งานในระบบ</p>
         </div>
         <div style={s.badge}>
@@ -193,7 +195,9 @@ export default function UsersPage() {
       <div style={s.filterBox}>
         {/* Search */}
         <div style={s.searchWrap}>
-          <span style={s.searchIcon}>🔍</span>
+          <span style={s.searchIcon}>
+            <Search size={18} />
+            </span>
           <input
             style={s.searchInput}
             placeholder="ค้นหาด้วย username หรือ email…"
@@ -436,18 +440,20 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "center",
   },
-  title: {
-    fontSize: 26,
+   title: {
+    fontSize: 28,
     fontWeight: 800,
     color: "#5A4633",
     margin: 0,
     letterSpacing: "-0.5px",
+    fontFamily: "'Inter', sans-serif",
   },
-  subtitle: {
+ subtitle: {
     fontSize: 13,
     color: "#a0856a",
-    marginTop: 4,
-    marginLeft: 4,
+    marginTop: 6,
+    marginLeft: 0,
+    marginBottom: 0,
   },
   badge: {
     background: "rgba(255,255,255,0.7)",
@@ -472,26 +478,29 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.9)",
     boxShadow: "0 2px 12px rgba(90,70,51,0.06)",
   },
-  searchWrap: {
+searchWrap: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "center", 
     background: "#fff",
     border: "1px solid #e8d5c4",
     borderRadius: 12,
-    padding: "7px 12px",
-    gap: 8,
+    padding: "8px 14px", 
+    gap: 12,
     flex: 1,
     minWidth: 220,
   },
-  searchIcon: { fontSize: 14 },
   searchInput: {
     border: "none",
     outline: "none",
-    fontSize: 13,
+    fontSize: 14, 
     color: "#5A4633",
     background: "transparent",
     flex: 1,
     fontFamily: "'Sarabun', sans-serif",
+    padding: 0,   
+    height: "24px", 
+    display: "flex",
+    alignItems: "center",
   },
   clearX: {
     background: "none",
@@ -553,6 +562,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   td: {
     padding: "12px 16px",
+    textAlign: "left" as const,
     color: "#5A4633",
     verticalAlign: "middle" as const,
   },

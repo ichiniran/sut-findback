@@ -1,11 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Prompt:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter::wght@400;500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --orange: #FBAA58;
+  --orange: #ffb367;
   --orange2: #F97316;
-  --brown: #5A4633;
+  --orange3: #ffaf40;
   --brown2: #6E4D31;
   --cream: #FFFAF5;
   --cream2: #ffe6d0;
@@ -46,7 +47,7 @@ body { font-family: 'Sarabun', sans-serif;  height: 100%; }
   padding: 20px;
 }
 .login-logo-img {
-  width: 200px;
+  width: 150px;
   height: auto;
   object-fit: contain;
 }
@@ -172,7 +173,7 @@ body { font-family: 'Sarabun', sans-serif;  height: 100%; }
 .sidebar {
   width: 230px;
   min-height: 100vh;
-  background: var(--brown);
+  background: linear-gradient(180deg, #fce3cb, #ffa85c); /* เปลี่ยนตรงนี้ */
   padding: 28px 16px;
   display: flex;
   flex-direction: column;

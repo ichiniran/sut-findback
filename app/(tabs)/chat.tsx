@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: '#bbb' },
   chatItem: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 15,
+    paddingVertical: 15, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: '#E0D6CC',
     backgroundColor: '#fff',
   },

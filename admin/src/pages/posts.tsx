@@ -1,13 +1,13 @@
 import {
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    onSnapshot,
-    Timestamp,
-    updateDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  Timestamp,
+  updateDoc,
 } from "firebase/firestore";
-import { Eye, Map, Trash2 } from "lucide-react";
+import { Eye, FileText, Map, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 
@@ -44,7 +44,7 @@ const STATUS_TABS = [
   { key: "all", label: "ทั้งหมด" },
   { key: "waiting", label: "รอดำเนินการ" },
   { key: "claimed", label: "มีคนรับแล้ว" },
-  { key: "rejected", label: "ถูกลบ" },
+  { key: "rejected", label: "ลบออก (report)" },
 ];
 
 const TYPE_OPTIONS = [
@@ -55,11 +55,11 @@ const TYPE_OPTIONS = [
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; icon: string; bg: string; color: string; border: string }
+  { label: string; bg: string; color: string; border: string }
 > = {
-  waiting: { label: "รอดำเนินการ", icon: "⏳", bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-  claimed:  { label: "มีคนรับแล้ว", icon: "🤝", bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
-  rejected:{ label: "ถูกลบ",       icon: "🗑️", bg: "#ffebee", color: "#c62828", border: "#ef9a9a" },
+  waiting: { label: "รอดำเนินการ", bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+  claimed: { label: "มีคนรับแล้ว", bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+  rejected: { label: "ลบออก (report)", bg: "#ffebee", color: "#c62828", border: "#ef9a9a" },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -222,27 +222,33 @@ export default function PostManagementPage() {
       {/* Toast */}
       {toast && (
         <div style={{ ...s.toast, background: toast.type === "success" ? "#22c55e" : "#ef4444" }}>
-          {toast.type === "success" ? "✅" : "❌"} {toast.msg}
+          {toast.type === "success" ? "SUCCESS" : "ERROR"} {toast.msg}
         </div>
       )}
 
       {/* Header */}
       <div style={s.header}>
-        <div>
-          <h1 style={s.title}>📋 Post Management</h1>
-          <p style={s.subtitle}>จัดการโพสต์ทั้งหมดในระบบ</p>
-        </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
+                      <FileText size={24} />Post Management
+                  </h1>
+                  <p style={s.subtitle}>จัดการโพสต์ทั้งหมดในระบบ</p>
+                </div>
         <div style={s.statsRow}>
           {(["waiting", "claimed", "rejected"] as const).map((k) => (
-            <div key={k} style={{ ...s.statCard, borderColor: STATUS_CONFIG[k].border }}>
-              <span style={{ fontSize: 18 }}>{STATUS_CONFIG[k].icon}</span>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: STATUS_CONFIG[k].color, lineHeight: 1 }}>
-                  {stats[k]}
-                </div>
-                <div style={{ fontSize: 11, color: "#a0856a", marginTop: 2 }}>{STATUS_CONFIG[k].label}</div>
-              </div>
-            </div>
+            <div style={{...s.statCard, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 600 }}>
+              {STATUS_CONFIG[k].label}
+            </span>
+
+            <span style={{ fontSize: 14, fontWeight: 800, color: STATUS_CONFIG[k].color }}>
+              {stats[k]}
+            </span>
+
+            <span style={{ fontSize: 12, color: "#a0856a" }}>
+              โพสต์
+            </span>
+          </div>
           ))}
         </div>
       </div>
@@ -257,26 +263,21 @@ export default function PostManagementPage() {
               onClick={() => setStatusFilter(t.key)}
             >
               {t.label}
-              {t.key !== "all" && (
-                <span style={{
-                  ...s.tabCount,
-                  background: statusFilter === t.key ? "rgba(255,255,255,0.3)" : "#f0e6dc",
-                  color: statusFilter === t.key ? "#fff" : "#a0856a",
-                }}>
-                  {stats[t.key as keyof typeof stats]}
-                </span>
-              )}
+              
             </button>
           ))}
         </div>
 
         <div style={s.filterRight}>
-          <input
-            style={s.searchInput}
-            placeholder="🔍 ค้นหา หมวดหมู่, รายละเอียด, ชื่อ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div style={s.searchBox}>
+            <Search size={14} style={s.searchIcon} />
+            <input
+              style={s.searchInput}
+              placeholder="ค้นหา หมวดหมู่, สถานที่"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <select style={s.select} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             {TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -306,7 +307,7 @@ export default function PostManagementPage() {
           <table style={s.table}>
             <thead>
               <tr>
-                {["ประเภท", "หมวดหมู่", "รายละเอียด", "เจ้าของ", "วันที่", "สถานะ", "จัดการ"].map((h) => (
+                {["ประเภท", "หมวดหมู่", "สถานที่", "เจ้าของ", "วันที่", "สถานะ", "จัดการ"].map((h) => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -323,20 +324,20 @@ export default function PostManagementPage() {
                         color: p.type === "found" ? "#2e7d32" : "#e65100",
                         border: `1px solid ${p.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
                       }}>
-                        {p.type === "found" ? "🟢 พบของ" : "🟠 ของหาย"}
+                        {p.type === "found" ? "พบของ" : "ของหาย"}
                       </span>
                     </td>
                     <td style={s.td}>{p.category ?? "-"}</td>
                     <td style={{ ...s.td, maxWidth: 180 }}>
                       <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.detail ?? "-"}
+                        {p.location ?? "-"}
                       </span>
                     </td>
                     <td style={s.td}>{p.username ? `@${p.username}` : "-"}</td>
                     <td style={s.td}>{toDateStr(p.createdAt)}</td>
                     <td style={s.td}>
                       <span style={{ ...s.statusBadge, background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-                        {st.icon} {st.label}
+                        {st.label}
                       </span>
                     </td>
                     <td style={s.td}>
@@ -346,14 +347,13 @@ export default function PostManagementPage() {
                           style={s.detailBtn}
                           onClick={() => openDetail(p)}
                         >
-                          <Eye size={13} style={{ marginRight: 4 }} />
-                          ดู
+                          <Eye size={14} />
                         </button>
                         <button
                           style={s.deleteBtn}
                           onClick={() => setConfirmDelete(p)}
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -371,7 +371,7 @@ export default function PostManagementPage() {
           <div style={s.modal} className="pm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pm-modal" style={{ overflowY: "auto", padding: "28px 30px", flex: 1, scrollbarWidth: "thin", scrollbarColor: "#e8d5c4 transparent" }}>
               <div style={s.modalHeader}>
-                <h2 style={s.modalTitle}>📄 รายละเอียดโพสต์</h2>
+                <h2 style={s.modalTitle}>รายละเอียดโพสต์</h2>
                 <button style={s.closeBtn} onClick={closeDetail}>✕</button>
               </div>
 
@@ -383,7 +383,7 @@ export default function PostManagementPage() {
                   color: selectedPost.type === "found" ? "#2e7d32" : "#e65100",
                   border: `1px solid ${selectedPost.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
                 }}>
-                  {selectedPost.type === "found" ? "🟢 พบของ" : "🟠 ของหาย"}
+                  {selectedPost.type === "found" ? "พบของ" : "ของหาย"}
                 </span>
                 {selectedPost.status && STATUS_CONFIG[selectedPost.status] && (
                   <span style={{
@@ -392,7 +392,7 @@ export default function PostManagementPage() {
                     color: STATUS_CONFIG[selectedPost.status].color,
                     border: `1px solid ${STATUS_CONFIG[selectedPost.status].border}`,
                   }}>
-                    {STATUS_CONFIG[selectedPost.status].icon} {STATUS_CONFIG[selectedPost.status].label}
+                    {STATUS_CONFIG[selectedPost.status].label}
                   </span>
                 )}
               </div>
@@ -429,9 +429,9 @@ export default function PostManagementPage() {
                 {selectedPost.locationDetail && <InfoRow label="รายละเอียดสถานที่" value={selectedPost.locationDetail} />}
                 {selectedPost.latitude && selectedPost.longitude && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 110 }}>พิกัดสถานที่</span>
+                    <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 110, textAlign: "left",}}>พิกัดสถานที่</span>
                     <a
-                      href={`https://www.google.com/maps?q=${selectedPost.latitude},${selectedPost.longitude}`}
+                      href={`https://www.google.com/maps?q=${encodeURIComponent(selectedPost.location?? "-")}&ll=${selectedPost.latitude},${selectedPost.longitude}`}
                       target="_blank"
                       rel="noreferrer"
                       style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#F97316", fontWeight: 700, textDecoration: "none", background: "#fff7f0", border: "1px solid #f0e6dc", borderRadius: 8, padding: "3px 8px" }}
@@ -481,8 +481,8 @@ export default function PostManagementPage() {
                         boxShadow: selectedPost.status === st ? `0 0 0 2px ${STATUS_CONFIG[st].border}` : "none",
                       }}
                     >
-                      {STATUS_CONFIG[st].icon} {STATUS_CONFIG[st].label}
-                      {selectedPost.status === st && " ✓"}
+                      {STATUS_CONFIG[st].label}
+                      {selectedPost.status === st }
                     </button>
                   ))}
                 </div>
@@ -507,7 +507,7 @@ export default function PostManagementPage() {
         <div style={s.overlay} onClick={() => setConfirmDelete(null)}>
           <div style={{ ...s.modal, maxWidth: 420, padding: 28 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ textAlign: "center", padding: "8px 0 20px" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>DELETE</div>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: "#5A4633", margin: "0 0 8px" }}>ยืนยันการลบโพสต์</h3>
               <p style={{ fontSize: 13, color: "#a0856a", margin: 0 }}>
                 โพสต์นี้จะถูกลบออกจากระบบถาวร ไม่สามารถกู้คืนได้
@@ -575,20 +575,40 @@ const s: Record<string, React.CSSProperties> = {
     gap: 20,
     fontFamily: "'Sarabun', sans-serif",
   },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 },
-  title: { fontSize: 26, fontWeight: 800, color: "#5A4633", margin: 0, letterSpacing: "-0.5px" },
-  subtitle: { fontSize: 13, color: "#a0856a", marginTop: 4, marginLeft: 4 },
-  statsRow: { display: "flex", gap: 10 },
-  statCard: {
+   header: {
     display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
-    background: "rgba(255,255,255,0.75)",
-    border: "1px solid",
-    borderRadius: 16,
-    padding: "10px 16px",
+    gap: 16,
+    flexWrap: "wrap",
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: "#5A4633",
+    margin: 0,
+    letterSpacing: "-0.5px",
+    fontFamily: "'Inter', sans-serif",
+  },
+
+  subtitle: {
+    fontSize: 13,
+    color: "#a0856a",
+    marginTop: 6,
+    marginLeft: 0,
+    marginBottom: 0,
+  },
+  statsRow: { display: "flex", gap: 14, flexWrap: "wrap",  alignItems: "center" },
+  statCard: {
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid #f0e6dc",
+    borderRadius: 20,
+    padding: "8px 18px",
+    fontSize: 13,
+    color: "#a0856a",
+    fontWeight: 600,
     backdropFilter: "blur(8px)",
-    boxShadow: "0 2px 8px rgba(90,70,51,0.06)",
   },
   filterBox: {
     display: "flex",
@@ -624,8 +644,18 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   filterRight: { display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", flexWrap: "wrap" },
+  searchBox: {
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: 12,
+    color: "#a0856a",
+  },
   searchInput: {
-    padding: "7px 12px",
+    padding: "7px 12px 7px 34px",
     borderRadius: 10,
     border: "1px solid #e8d5c4",
     background: "#fff",
@@ -686,33 +716,34 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #f0e6dc",
   },
   tr: { borderBottom: "1px solid #fdf0e8", transition: "background 0.15s" },
-  td: { padding: "12px 16px", color: "#5A4633", verticalAlign: "middle" },
+  td: { padding: "12px 16px", color: "#5A4633", verticalAlign: "middle", textAlign: "left" },
   typeBadge: { padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" },
   statusBadge: { padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" },
   detailBtn: {
     display: "inline-flex",
     alignItems: "center",
-    padding: "6px 12px",
-    borderRadius: 10,
+    justifyContent: "center",
+    width: 38,
+    height: 38,
+    padding: 0,
+    borderRadius: 12,
     border: "1px solid #F97316",
     background: "transparent",
     color: "#F97316",
-    fontSize: 12,
-    fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
     transition: "all 0.15s",
   },
   deleteBtn: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "6px 8px",
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    padding: 0,
+    borderRadius: 12,
     border: "1px solid #ef9a9a",
     background: "#fff5f5",
     color: "#c62828",
-    fontSize: 12,
     cursor: "pointer",
     transition: "all 0.15s",
   },

@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
     marginHorizontal: 10,
+    
   },
 
   menuItem: {
@@ -334,6 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  
   },
 
   menuDivider: {
@@ -342,7 +344,7 @@ const styles = StyleSheet.create({
   },
 
   menuText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B4D34',
     fontWeight: '500',
   },

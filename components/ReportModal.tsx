@@ -46,7 +46,7 @@ export default function ReportModal({
       console.error("โหลด username ไม่ได้", e);
     }
 
-    // 🔥 เช็คซ้ำก่อน
+    
     const q = query(
       collection(db, "reports"),
       where("postId", "==", postId),
@@ -220,7 +220,7 @@ export default function ReportModal({
   );
 }
 
-const ACCENT = "#FF3B30";
+const ACCENT = "#F97316";
 const ACCENT_LIGHT = "#FFF0EF";
 const SURFACE = "#FFFFFF";
 const TEXT_PRIMARY = "#111827";

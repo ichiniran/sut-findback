@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
-  addDoc, collection, getFirestore,
+  addDoc, collection,
+  doc, getDoc,
+  getFirestore,
   onSnapshot, orderBy, query,
   serverTimestamp,
   where,
-  writeBatch
+  writeBatch,
 } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -62,7 +64,20 @@ export default function ChatDetail() {
   const currentUser = auth.currentUser;
   const db = getFirestore(app);
   const roomId = [currentUser?.uid, targetUid].sort().join('_');
+  const [myUsername, setMyUsername] = useState('ฉัน');
 
+// เพิ่ม useEffect ดึง username จาก Firestore
+useEffect(() => {
+  const fetchMyUsername = async () => {
+    if (!currentUser) return;
+    const db = getFirestore(app);
+    const snap = await getDoc(doc(db, 'users', currentUser.uid));
+    if (snap.exists()) {
+      setMyUsername(snap.data().username || 'ฉัน');
+    }
+  };
+  fetchMyUsername();
+}, []);
   useEffect(() => {
     setPostCardSent(false);
   }, [postId]);
@@ -142,7 +157,7 @@ export default function ChatDetail() {
         longitude: postLongitude || '',
         currentStatus: postCurrentStatus || '',
         participants: [currentUser.uid, targetUid],
-        senderName: currentUser.displayName || 'ฉัน',
+        senderName: myUsername,
         receiverName: targetName || '-',
         hiddenFor: [],
       });
@@ -158,7 +173,7 @@ export default function ChatDetail() {
       isRead: false,
       createdAt: serverTimestamp(),
       participants: [currentUser.uid, targetUid],
-      senderName: currentUser.displayName || 'ฉัน',
+      senderName: myUsername,
       receiverName: targetName || '-',
       hiddenFor: [],
     });
@@ -224,15 +239,26 @@ export default function ChatDetail() {
                       ) : null}
                       <View style={styles.postCardBody}>
                         <View style={[styles.postCardBadge, {
-                          backgroundColor: item.postType === 'found' ? '#F97316' : '#EF4444'
+                          backgroundColor: item.postType === 'found' ? '#ff995e' : '#ff5e5e'
                         }]}>
                           <Text style={styles.postCardBadgeText}>
                             {item.postType === 'found' ? 'พบของ' : 'ของหาย'}
                           </Text>
                         </View>
                         <Text style={styles.postCardTitle} numberOfLines={2}>{item.title}</Text>
-                        <Text style={styles.postCardSub}>📍 {item.locationName}</Text>
-                        <Text style={styles.postCardSub}>📅 {item.date}</Text>
+                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <Ionicons name="location-outline" size={16} color="#ff995e" />
+                      <Text style={[styles.postCardSub, { marginLeft: 6 }]}>
+                        {item.locationName}
+                      </Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                      <Ionicons name="calendar-outline" size={16} color="#ff995e" />
+                      <Text style={[styles.postCardSub, { marginLeft: 6 }]}>
+                        {item.date}
+                      </Text>
+                    </View>
                         <Text style={styles.postCardTap}>แตะเพื่อดูรายละเอียด →</Text>
                       </View>
                     </TouchableOpacity>

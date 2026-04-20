@@ -24,11 +24,11 @@ export default function HomeScreen() {
 
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    <View style={{ flex: 1, backgroundColor: '#FFFAF5' }}>
 
       {/* HEADER + TOP TAB BAR */}
       <LinearGradient
-        colors={['#FFFAF5', '#fff6ee']}
+        colors={['#ffffff', '#ffffff']}
         locations={[0.8, 1]}
         style={{ paddingTop: 70, alignItems: 'center' }}
       >

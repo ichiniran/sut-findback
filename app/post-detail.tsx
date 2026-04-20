@@ -4,10 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
+  Alert, Animated, Dimensions,
   Image, Linking, Modal,
   ScrollView,
   Share,
@@ -225,15 +224,31 @@ export default function PostDetail() {
       </SafeAreaView>
     );
   }
-    const openMap = () => {
-      const lat = resolvedLatitude;
-      const lng = resolvedLongitude;
+    const openMap = async () => {
+  const lat = resolvedLatitude;
+  const lng = resolvedLongitude;
+  if (!lat || !lng) return;
 
-      if (!lat || !lng) return;
+  const label = encodeURIComponent(
+    resolvedLocationName || resolvedLocation || 'สถานที่'
+  );
 
-      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      Linking.openURL(url);
-    };
+  const googleMapsApp = `comgooglemaps://?center=${lat},${lng}&q=${label}&zoom=17`;
+  const googleMapsWeb = `https://maps.google.com/maps?q=${label}&ll=${lat},${lng}`;
+
+  try {
+    const supported = await Linking.canOpenURL(googleMapsApp);
+
+    if (supported) {
+      await Linking.openURL(googleMapsApp).catch(() => null);
+    } else {
+      await Linking.openURL(googleMapsWeb).catch(() => null);
+    }
+  } catch (error) {
+    console.log("Map error (ignore):", error);
+    await Linking.openURL(googleMapsWeb).catch(() => null);
+  }
+};
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
@@ -296,11 +311,7 @@ export default function PostDetail() {
               <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
             </View>
           )}
-          <View style={[styles.badge, { borderColor: isFound ? COLORS.primary : '#EF4444' }]}>
-            <Text style={[styles.badgeText, { color: isFound ? COLORS.primary : '#EF4444' }]}>
-              {isFound ? 'พบของ' : 'ของหาย'}
-            </Text>
-          </View>
+          <StatusChip status={status} isFound={isFound} />
         </View>
 
         {/* Content Card */}
@@ -321,7 +332,7 @@ export default function PostDetail() {
               }}
             />
           </View>
-          <StatusChip status={status} isFound={isFound} />
+          
           <View style={styles.divider} />
 
           <View style={styles.infoList}>
@@ -536,30 +547,49 @@ export default function PostDetail() {
 
 // ── StatusChip ──
 function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFound: boolean }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // claimed ไม่ต้องกระพริบ
+    if (status === 'claimed') return;
+
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    blink.start();
+    return () => blink.stop();
+  }, [status]);
+
   if (status === 'claimed') {
     return (
-      <View style={[styles.statusChip, { backgroundColor: COLORS.greenLight }]}>
-        <Ionicons name="checkmark-circle" size={13} color={COLORS.green} />
+      <View style={[styles.badge, { backgroundColor: COLORS.greenLight }]}>
         <Text style={[styles.statusText, { color: COLORS.green }]}>
-          {isFound ? 'เจ้าของมารับแล้ว' : 'ได้รับของแล้ว'}
+          ● {isFound ? 'เจ้าของมารับแล้ว' : 'ได้รับของแล้ว'}
         </Text>
       </View>
     );
   }
+
   if (!isFound) {
-    return (
-      <View style={[styles.statusChip, { backgroundColor: '#FEF2F2' }]}>
-        <View style={[styles.statusDot, { backgroundColor: '#EF4444' }]} />
-        <Text style={[styles.statusText, { color: '#B91C1C' }]}>ยังตามหาของอยู่</Text>
-      </View>
-    );
-  }
   return (
-    <View style={[styles.statusChip, { backgroundColor: '#FFF3E0' }]}>
-      <View style={[styles.statusDot, { backgroundColor: '#E65100' }]} />
-      <Text style={[styles.statusText, { color: '#E65100' }]}>รอเจ้าของมารับ</Text>
+    <View style={[styles.badge, { backgroundColor: '#fef2f2ad' }]}>
+      <Animated.Text style={[styles.statusText, { color: '#f00000', opacity }]}>
+        ● ยังตามหาของอยู่
+      </Animated.Text>
     </View>
   );
+}
+
+return (
+  <View style={[styles.badge, { backgroundColor: '#fef7f2' }]}>
+    <Animated.Text style={[styles.statusText, { color: '#E67E22', opacity }]}>
+      ● รอเจ้าของมารับ
+    </Animated.Text>
+  </View>
+);
 }
 
 // ── InfoRow ──
@@ -631,10 +661,11 @@ const styles = StyleSheet.create({
   imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' },
   noImageText: { color: 'rgba(33, 26, 26, 0.52)', marginTop: 8, fontSize: 13 },
   badge: {
-    position: 'absolute', top: 14, right: 14, backgroundColor: '#ffffff91',
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 2,
+    position: 'absolute', top: 14, right: 14, 
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    
   },
-  badgeText: { fontSize: 12, fontWeight: '600' },
+  badgeText: { fontSize: 12, fontWeight: '600' ,color: '#fff'},
   dots: {
     position: 'absolute', bottom: 12,
     left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6,
@@ -654,8 +685,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 4,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: COLORS.border, marginHorizontal: 20, marginVertical: 18 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  divider: { height: 1, backgroundColor: '#fff', marginHorizontal: 20, marginVertical: 18 },
   infoList: { paddingHorizontal: 20, gap: 18 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   infoIcon: { marginTop: 2, width: 22 },

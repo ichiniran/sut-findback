@@ -1,12 +1,14 @@
 import {
-    collection,
-    doc,
-    getDoc,
-    onSnapshot,
-    Timestamp,
-    updateDoc,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
 } from "firebase/firestore";
-import { Map } from "lucide-react";
+import { Flag, Map } from "lucide-react";
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 
@@ -175,41 +177,82 @@ export default function ReportsPage() {
   };
 
   // ── Action: reviewed only ──
-  const handleReviewed = async () => {
-    if (!selectedReport) return;
-    setActionLoading(true);
-    try {
-      await updateDoc(doc(db, "reports", selectedReport.id), {
-        status: "reviewed",
-        reviewedAt: Timestamp.now(),
-      });
-      showToast("ตรวจสอบแล้ว ไม่มีการลบโพสต์", "success");
-      closeDetail();
-    } catch {
-      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
+  // ── ฟังก์ชันส่ง notification ──
+const sendReviewedNotification = async (report: Report, post: Post | null) => {
+  await addDoc(
+    collection(db, 'users', report.reportedBy, 'notifications'),
+    {
+      type: 'report_reviewed',
+      title: 'ผลการตรวจสอบรายงาน',
+      desc: 'โพสต์ที่คุณรายงานได้รับการตรวจสอบแล้ว',
+      postId: report.postId || '',
+      postTitle: post?.category || '',
+      detail: post?.detail || '',
+      location: post?.location || '',
+      locationName: post?.locationName || '',
+      locationDetail: post?.locationDetail || '',
+      receiveLocation: post?.receiveLocation || '',
+      username: post?.username || '',
+      userId: post?.userId || '',
+      date: post?.date || '',
+      images: post?.images ? JSON.stringify(post.images) : '',
+      itemImage: Array.isArray(post?.images) ? post.images[0] : '',
+      category: post?.category || '',
+      latitude: post?.latitude || '',
+      longitude: post?.longitude || '',
+      currentStatus: post?.status || '',
+      isRead: false,
+      createdAt: serverTimestamp(),
     }
-    setActionLoading(false);
-  };
+  );
+};
 
-  // ── Action: reject post + reviewed report ──
-  const handleRejectPost = async () => {
-    if (!selectedReport) return;
-    setActionLoading(true);
-    try {
-      await updateDoc(doc(db, "posts", selectedReport.postId), {
-        status: "rejected",
-      });
-      await updateDoc(doc(db, "reports", selectedReport.id), {
-        status: "reviewed",
-        reviewedAt: Timestamp.now(),
-      });
-      showToast("ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว", "success");
-      closeDetail();
-    } catch {
-      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
-    }
-    setActionLoading(false);
-  };
+// ── Action: reviewed only ──
+const handleReviewed = async () => {
+  if (!selectedReport) return;
+  setActionLoading(true);
+  try {
+    await updateDoc(doc(db, 'reports', selectedReport.id), {
+      status: 'reviewed',
+      reviewedAt: Timestamp.now(),
+      notified: true,
+    });
+
+    // ✅ ส่ง notification
+    await sendReviewedNotification(selectedReport, selectedPost);
+
+    showToast('ตรวจสอบแล้ว ไม่มีการลบโพสต์', 'success');
+    closeDetail();
+  } catch {
+    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+  }
+  setActionLoading(false);
+};
+
+// ── Action: reject post + reviewed report ──
+const handleRejectPost = async () => {
+  if (!selectedReport) return;
+  setActionLoading(true);
+  try {
+    await updateDoc(doc(db, 'posts', selectedReport.postId), {
+      status: 'rejected',
+    });
+    await updateDoc(doc(db, 'reports', selectedReport.id), {
+      status: 'reviewed',
+      reviewedAt: Timestamp.now(),
+      notified: true,
+    });
+
+    // ✅ ส่ง notification
+    await sendReviewedNotification(selectedReport, selectedPost);
+
+    showToast('ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว', 'success');
+    closeDetail();
+  } catch {
+    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+  }
+  setActionLoading(false);
+};
 
   // ── Filter ──
   const filtered = reports.filter((r) => {
@@ -239,9 +282,11 @@ export default function ReportsPage() {
 
       {/* Header */}
       <div style={s.header}>
-        <div>
-          <h1 style={s.title}>🚩 Reports</h1>
-          <p style={s.subtitle}>รายการแจ้งปัญหาจากผู้ใช้งาน</p>
+         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
+             <Flag size={24} />Reports
+             </h1>
+          <p style={s.subtitle}>รายการแจ้งปัญหาจากผู้ใช้</p>
         </div>
         <div style={s.badge}>
           รอตรวจ{" "}
@@ -329,7 +374,7 @@ export default function ReportsPage() {
 
                   <td style={s.td}>
                     <span style={s.reasonTag}>
-                      {REASONS.find((x) => x.label === r.reason)?.icon ?? "💬"} {r.reason}
+                      {REASONS.find((x) => x.label === r.reason)?.icon ?? ""} {r.reason}
                     </span>
                   </td>
                   <td style={s.td}>{toDateStr(r.createdAt)}</td>
@@ -342,7 +387,7 @@ export default function ReportsPage() {
                         border: `1px solid ${r.status === "pending" ? "#ffcc80" : "#a5d6a7"}`,
                       }}
                     >
-                      {r.status === "pending" ? "⏳ รอตรวจ" : "✅ ตรวจแล้ว"}
+                      {r.status === "pending" ? "รอตรวจ" : "ตรวจแล้ว"}
                     </span>
                   </td>
                   <td style={s.td}>
@@ -385,12 +430,12 @@ export default function ReportsPage() {
                 />
                 <InfoRow
                   label="เหตุผล"
-                  value={`${REASONS.find((x) => x.label === selectedReport.reason)?.icon ?? "💬"} ${selectedReport.reason}`}
+                  value={`${REASONS.find((x) => x.label === selectedReport.reason)?.icon ?? ""} ${selectedReport.reason}`}
                 />
                 <InfoRow label="วันที่แจ้ง" value={toDateStr(selectedReport.createdAt)} />
                 <InfoRow
                   label="สถานะ"
-                  value={selectedReport.status === "pending" ? "⏳ รอตรวจสอบ" : "✅ ตรวจแล้ว"}
+                  value={selectedReport.status === "pending" ? "รอตรวจสอบ" : "ตรวจแล้ว"}
                 />
                 {selectedReport.reviewedAt && (
                   <InfoRow label="ตรวจเมื่อ" value={toDateStr(selectedReport.reviewedAt)} />
@@ -512,7 +557,7 @@ export default function ReportsPage() {
                             {/* value + link */}
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <a
-                                href={`https://www.google.com/maps?q=${selectedPost.latitude},${selectedPost.longitude}`}
+                                 href={`https://www.google.com/maps?q=${encodeURIComponent(selectedPost.location?? "-")}&ll=${selectedPost.latitude},${selectedPost.longitude}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{
@@ -677,7 +722,14 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Sarabun', sans-serif",
   },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 26, fontWeight: 800, color: "#5A4633", margin: 0, letterSpacing: "-0.5px" },
+  title: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: "#5A4633",
+    margin: 0,
+    letterSpacing: "-0.5px",
+    fontFamily: "'Inter', sans-serif",
+  },
   subtitle: { fontSize: 13, color: "#a0856a", marginTop: 4, marginLeft: 4 },
   badge: {
     background: "rgba(255,255,255,0.7)",
@@ -773,7 +825,7 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #f0e6dc",
   },
   tr: { borderBottom: "1px solid #fdf0e8", transition: "background 0.15s" },
-  td: { padding: "13px 16px", color: "#5A4633", verticalAlign: "middle" as const },
+  td: { padding: "13px 16px", color: "#5A4633", verticalAlign: "middle" as const, textAlign: "left" as const,},
   mono: { fontFamily: "monospace", fontSize: 12, color: "#a0856a" },
   reasonTag: {
     background: "#fff7f0",
