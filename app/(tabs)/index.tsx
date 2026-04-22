@@ -11,7 +11,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<'found' | 'lost'>('found');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState<FilterOptions>({ category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' });
+  const [filters, setFilters] = useState<FilterOptions>({ category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '', status: 'all' });
   const params = useLocalSearchParams();
 
   useEffect(() => {
@@ -22,6 +22,9 @@ export default function HomeScreen() {
     }
   }, [params.fromTab]);
 
+  useEffect(() => {
+  setFilters(prev => ({ ...prev, status: 'all' }));
+}, [activeTab]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFAF5' }}>
@@ -75,11 +78,12 @@ export default function HomeScreen() {
        
       {/* CONTENT */}
       {activeTab === 'found' ? <FoundScreen searchQuery={searchQuery} filters={filters} /> : <LostScreen searchQuery={searchQuery} filters={filters} />}
-         <FilterModal
-          visible={showFilter}
-          onClose={() => setShowFilter(false)}
-          onApply={(f) => setFilters(f)}
-        />
+        <FilterModal
+        visible={showFilter}
+        onClose={() => setShowFilter(false)}
+        onApply={(f) => setFilters(f)}
+        showStatusFilter={activeTab === 'found'}  // แสดงเฉพาะแท็บ found
+      />
     </View>
   );
 }

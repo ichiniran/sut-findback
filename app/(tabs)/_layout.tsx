@@ -79,7 +79,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           const tintColor = meta.center
             ? '#ffffff'
             : focused
-            ? '#5a5a5a'
+            ? '#F97316'
             : '#aaaaaa';
 
           const onPress = () => {
@@ -160,25 +160,31 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  barContainer: {
-    backgroundColor: '#FFFAF5',
-    paddingTop: 6,
-  },
+ barContainer: {
+  backgroundColor: 'transparent',  // เปลี่ยนเป็น transparent
+  paddingHorizontal: 16,            // เพิ่มระยะห่างซ้ายขวา
+  paddingBottom: 16,                // เพิ่มระยะห่างล่าง
+  paddingTop: 6,
+  position: 'absolute',            // ลอยเหนือ content
+  bottom: 0,
+  left: 0,
+  right: 0,
+},
 
-  bar: {
-    height: 90,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingBottom: 20,
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
-  },
+bar: {
+  height: 80,
+  backgroundColor: '#ffffff',
+  borderRadius: 60,                 // มน 4 ด้าน
+  flexDirection: 'row',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  paddingBottom: 12,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.12,
+  shadowRadius: 12,
+  elevation: 8,
+},
 
   tabButton: {
     flex: 1,
@@ -195,7 +201,7 @@ const styles = StyleSheet.create({
   },
 
   activeLabel: {
-    color: '#5a5a5a',
+    color: '#F97316',
   },
 
   inactiveLabel: {

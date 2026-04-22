@@ -40,7 +40,7 @@ const STANDARD_LOCATIONS = [
 
 export default function FoundScreen({
   searchQuery = '',
-  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' },
+  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '', status: 'all' },
 }: {
   searchQuery?: string;
   filters: FilterOptions;
@@ -48,23 +48,29 @@ export default function FoundScreen({
   const [posts, setPosts] = useState<Post[]>([]);
 
   const filteredPosts = posts.filter(post => {
-    const matchSearch =
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.detail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.locationName.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchSearch =
+    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.detail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.locationName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchCategory =
-      filters.category === 'ทั้งหมด' ? true
-      : filters.category === 'อื่น ๆ' ? !STANDARD_CATEGORIES.includes(post.category)
-      : post.category === filters.category;
+  const matchCategory =
+    filters.category === 'ทั้งหมด' ? true
+    : filters.category === 'อื่น ๆ' ? !STANDARD_CATEGORIES.includes(post.category)
+    : post.category === filters.category;
 
-    const matchLocation =
-      filters.location === 'ทั้งหมด' ? true
-      : filters.location === 'อื่น ๆ' ? !STANDARD_LOCATIONS.includes(post.locationName)
-      : post.locationName === filters.location;
+  const matchLocation =
+    filters.location === 'ทั้งหมด' ? true
+    : filters.location === 'อื่น ๆ' ? !STANDARD_LOCATIONS.includes(post.locationName)
+    : post.locationName === filters.location;
 
-    return matchSearch && matchCategory && matchLocation;
-  });
+  // ── เพิ่มตรงนี้ ──
+  const matchStatus =
+    !filters.status || filters.status === 'all'
+      ? post.currentStatus !== 'rejected'
+      : post.currentStatus === filters.status;
+
+  return matchSearch && matchCategory && matchLocation && matchStatus;
+});
 
   useFocusEffect(
     useCallback(() => {
@@ -77,7 +83,7 @@ export default function FoundScreen({
             query(
               collection(db, 'posts'),
               where('type', '==', 'found'),
-              where('status', '==', 'waiting'),
+              //where('status', '==', 'waiting'),
               orderBy('createdAt', 'desc'),
             )
           );

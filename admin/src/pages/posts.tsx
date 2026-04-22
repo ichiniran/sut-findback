@@ -32,6 +32,9 @@ interface Post {
   receiveLocation?: string;
   createdAt?: Timestamp | string | null;
   updatedAt?: Timestamp | string | null;
+  claimedBy?: string;        // uid คนรับ
+  claimedByName?: string;    // ชื่อคนรับ
+  claimedByPhone?: string;   // เบอร์คนรับ
 }
 
 interface UserInfo {
@@ -455,6 +458,12 @@ export default function PostManagementPage() {
                   </div>
                 )}
                 <InfoRow label="สร้างเมื่อ" value={toDateStr(selectedPost.createdAt)} />
+                {selectedPost.status === "claimed" && (
+                  <>
+                    <InfoRow label="รับโดย" value={selectedPost.claimedByName ?? "-"} />
+                    <InfoRow label="เบอร์คนรับ" value={selectedPost.claimedByPhone ?? "-"} />
+                  </>
+                )}
               </div>
 
               {/* Change Status */}

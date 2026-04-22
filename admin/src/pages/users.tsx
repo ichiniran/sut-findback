@@ -14,6 +14,7 @@ interface UserDoc {
   id: string;
   username?: string;
   email?: string;
+  phone?: string;
   createdAt?: Timestamp | string | null;
   banned?: boolean;
 }
@@ -335,6 +336,7 @@ export default function UsersPage() {
               <InfoRow label="User ID" value={selectedUser.id} mono />
               <InfoRow label="Username" value={selectedUser.username ?? "-"} />
               <InfoRow label="Email" value={selectedUser.email ?? "-"} />
+              <InfoRow label="เบอร์โทร" value={selectedUser.phone ?? "ยังไม่ได้เพิ่ม"} />
               <InfoRow label="วันที่สมัคร" value={toDateStr(selectedUser.createdAt)} />
             </div>
 
@@ -346,7 +348,7 @@ export default function UsersPage() {
               </div>
               <div style={{ ...s.statBox, borderColor: reportCount > 0 ? "#ef9a9a" : "#f0e6dc" }}>
                 <p style={{ ...s.statNum, color: reportCount > 0 ? "#c62828" : "#5A4633" }}>
-                  {reportCount > 0 ? `🚩 ${reportCount}` : reportCount}
+                  {reportCount > 0 ? `${reportCount}` : reportCount}
                 </p>
                 <p style={s.statLabel}>โพสต์ถูก Report</p>
               </div>

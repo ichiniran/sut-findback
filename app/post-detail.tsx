@@ -7,7 +7,8 @@ import { addDoc, collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, s
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert, Animated, Dimensions,
-  Image, Linking, Modal,
+  Image,
+  Linking, Modal,
   ScrollView,
   Share,
   StatusBar,
@@ -66,7 +67,8 @@ export default function PostDetail() {
   //const resolvedCurrentStatus = params.currentStatus || postData?.status || 'waiting';
   const [status, setStatus] = useState<'waiting' | 'claimed'>('waiting');
   const isFound = resolvedType === 'found';
-
+  
+  
   let itemImages: string[] = [];
   if (params.images) {
     try { itemImages = JSON.parse(params.images); } catch { itemImages = [params.images]; }
@@ -118,40 +120,66 @@ export default function PostDetail() {
   const displayDate = resolvedDate;
   const displayLocation = resolvedLocationName;
 
-  const handleClaimed = () => {
+  const handleClaimed = async () => {
+  if (isFound) {
+  const db = getFirestore(app);
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const snap = await getDoc(doc(db, 'users', user.uid));
+  const existingPhone = snap.exists() ? snap.data().phone ?? '' : '';
+
+  if (!existingPhone) {
+    // ยังไม่มีเบอร์ → ไปตั้งค่าก่อน
     Alert.alert(
-      isFound ? 'ยืนยันการรับของ' : 'ยืนยันการได้รับของ',
-      isFound ? 'ยืนยันว่าเจ้าของได้มารับของแล้วใช่ไหม?' : 'ยืนยันว่าคุณได้รับของคืนแล้วใช่ไหม?',
+      'ยังไม่มีเบอร์โทร',
+      'กรุณาเพิ่มเบอร์โทรในหน้าตั้งค่าบัญชีก่อนรับของ',
       [
         { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ยืนยัน',
-          onPress: async () => {
-            try {
-              const db = getFirestore(app);
-              await updateDoc(doc(db, 'posts', postId!), { status: 'claimed' });
-              await addDoc(
-                collection(db, 'users', resolvedUserId!, 'notifications'),
-                {
-                  title: isFound ? 'มีคนมารับของแล้ว' : 'ได้รับของคืนแล้ว',
-                  desc: isFound ? 'โพสต์นี้ของคุณมีคนมารับไปแล้ว' : 'โพสต์ของคุณถูกอัปเดตสถานะแล้ว',
-                  postId: postId,
-                  type: resolvedType,
-                  ownerId: resolvedUserId,
-                  itemImage: itemImages[0] || '',
-                  isRead: false,
-                  createdAt: new Date(),
-                  
-                }
-              );
-            } catch (e) {
-              console.log(e);
-            }
-          },
-        },
+        { text: 'ไปตั้งค่า', onPress: () => router.push('/account-settings') },
       ]
     );
-  };
+    return;
+  }
+
+  // มีเบอร์แล้ว → claimed เลย
+  Alert.alert(
+    'ยืนยันการรับของ',
+    `ยืนยันว่าคุณ (${existingPhone}) มารับของแล้วใช่ไหม?`,
+    [
+      { text: 'ยกเลิก', style: 'cancel' },
+      {
+        text: 'ยืนยัน',
+        onPress: async () => {
+          try {
+            const claimerName = snap.data()?.username ?? 'ไม่ทราบชื่อ';
+            await updateDoc(doc(db, 'posts', postId!), {
+              status: 'claimed',
+              claimedBy: user.uid,
+              claimedByName: claimerName,
+              claimedByPhone: existingPhone,
+            });
+            await addDoc(
+              collection(db, 'users', resolvedUserId!, 'notifications'),
+              {
+                title: 'มีคนมารับของแล้ว',
+                desc: `${claimerName} มารับของของคุณแล้ว`,
+                postId, type: resolvedType, ownerId: resolvedUserId,
+                claimedBy: user.uid, claimedByName: claimerName,
+                claimedByPhone: existingPhone,
+                itemImage: itemImages[0] || '',
+                isRead: false, createdAt: new Date(),
+              }
+            );
+          } catch (e) {
+            Alert.alert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่');
+          }
+        },
+      },
+    ]
+  );
+}
+};
 
   const handleChat = () => {
     const auth = getAuth(app);
@@ -412,57 +440,67 @@ export default function PostDetail() {
       </ScrollView>
 
       {/* Sticky Bottom Buttons */}
-      <View style={styles.stickyBottom}>
-        {isFound ? (
-          <>
-            {!isOwner && (
-              <TouchableOpacity
-                style={[styles.btnPrimary, status === 'claimed' && styles.btnDisabled]}
-                onPress={handleChat} disabled={status === 'claimed'}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-                <Text style={styles.btnPrimaryText}>ติดต่อรับคืน</Text>
-              </TouchableOpacity>
-            )}
-            {!isOwner && (
-              status === 'waiting' ? (
-                <TouchableOpacity style={styles.btnGreen} onPress={handleClaimed}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.green} />
-                  <Text style={styles.btnGreenText}>ฉันมารับแล้ว</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.btnClaimed}>
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
-                  <Text style={styles.btnClaimedText}>เจ้าของมารับแล้ว</Text>
-                </View>
-              )
-            )}
-          </>
-        ) : (
-          <>
-            {!isOwner && (
-              <TouchableOpacity style={styles.btnPrimary} onPress={handleChat}>
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-                <Text style={styles.btnPrimaryText}>ติดต่อเจ้าของ</Text>
-              </TouchableOpacity>
-            )}
-            {isOwner && (
-              status === 'waiting' ? (
-                <TouchableOpacity style={styles.btnGreen} onPress={handleClaimed}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.green} />
-                  <Text style={styles.btnGreenText}>ฉันได้รับของแล้ว</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.btnClaimed}>
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
-                  <Text style={styles.btnClaimedText}>ได้รับของแล้ว</Text>
-                </View>
-              )
-            )}
-          </>
-        )}
+<View style={styles.stickyBottom}>
+  {isFound ? (
+  <>
+    {/* ✅ แสดงให้ทุกคนเห็นเมื่อ claimed แล้ว (ทั้ง owner และ non-owner) */}
+    {status === 'claimed' && postData?.claimedByName && (
+      <View style={styles.claimedBox}>
+        <View style={styles.claimedRow}>
+          <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
+          <Text style={styles.claimedText}>
+            รับโดย <Text style={styles.claimedName}>{postData.claimedByName}</Text>
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.contactAdminBtn}
+          onPress={() => Linking.openURL('https://line.me/R/ti/p/@xxxxxxx')}
+        >
+          <Ionicons name="logo-whatsapp" size={16} color="#06C755" />
+          <Text style={styles.contactAdminText}>ติดต่อแอดมิน (LINE)</Text>
+        </TouchableOpacity>
       </View>
+    )}
 
+    {/* ✅ ปุ่มพวกนี้แสดงเฉพาะตอน waiting และ ไม่ใช่เจ้าของ */}
+    {!isOwner && status === 'waiting' && (
+      <>
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleChat}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+          <Text style={styles.btnPrimaryText}>ติดต่อรับคืน</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.btnGreen} onPress={handleClaimed}>
+          <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.green} />
+          <Text style={styles.btnGreenText}>ฉันมารับแล้ว</Text>
+        </TouchableOpacity>
+      </>
+    )}
+  </>
+) : (
+    <>
+      {!isOwner && (
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleChat}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+          <Text style={styles.btnPrimaryText}>ติดต่อเจ้าของ</Text>
+        </TouchableOpacity>
+      )}
+      {isOwner && (
+        status === 'waiting' ? (
+          <TouchableOpacity style={styles.btnGreen} onPress={handleClaimed}>
+            <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.green} />
+            <Text style={styles.btnGreenText}>ฉันได้รับของแล้ว</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.btnClaimed}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
+            <Text style={styles.btnClaimedText}>ได้รับของแล้ว</Text>
+          </View>
+        )
+      )}
+    </>
+  )}
+</View>
       <BottomSheetMenu
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
@@ -540,7 +578,6 @@ export default function PostDetail() {
           <TouchableOpacity style={styles.previewFooter} onPress={() => setPreviewImage(null)} />
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -753,4 +790,67 @@ const styles = StyleSheet.create({
     height: 80,
     width: '100%',
   },
+  otpSheet: {
+  backgroundColor: '#FFFAF5',
+  borderTopLeftRadius: 28, borderTopRightRadius: 28,
+  padding: 28, paddingBottom: 48, gap: 12,
+},
+otpHandle: {
+  width: 40, height: 4, borderRadius: 2,
+  backgroundColor: '#e5d3bd', alignSelf: 'center', marginBottom: 8,
+},
+otpTitle: { fontSize: 18, fontWeight: '700', color: '#2d1b10' },
+otpSub: { fontSize: 13, color: '#a0856a', marginTop: -4 },
+otpInputWrap: {
+  flexDirection: 'row', alignItems: 'center',
+  backgroundColor: '#fff', borderRadius: 14,
+  borderWidth: 1.5, borderColor: '#e5d3bd',
+  paddingHorizontal: 14, height: 52, gap: 10, marginTop: 4,
+},
+otpInput: { flex: 1, fontSize: 16, color: '#2d1b10', fontWeight: '500' },
+otpBtn: {
+  height: 50, borderRadius: 14, backgroundColor: '#F97316',
+  alignItems: 'center', justifyContent: 'center', marginTop: 4,
+},
+otpBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+claimedBox: {
+  marginHorizontal: 20,
+  marginTop: 16,
+  padding: 14,
+  borderRadius: 14,
+  backgroundColor: COLORS.greenLight,
+  borderWidth: 1,
+  borderColor: COLORS.greenBorder,
+  gap: 10,
+},
+claimedRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+},
+claimedText: {
+  fontSize: 14,
+  color: COLORS.green,
+  fontWeight: '500',
+},
+claimedName: {
+  fontWeight: '700',
+  color: COLORS.green,
+},
+contactAdminBtn: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  paddingVertical: 10,
+  borderRadius: 10,
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderColor: '#86efac',
+},
+contactAdminText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#16a34a',
+},
 });
