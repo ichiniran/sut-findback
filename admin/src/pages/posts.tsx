@@ -1,13 +1,13 @@
 import {
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    onSnapshot,
-    Timestamp,
-    updateDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  Timestamp,
+  updateDoc,
 } from "firebase/firestore";
-import { Eye, Map, Trash2 } from "lucide-react";
+import { Eye, FileText, Map, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 
@@ -32,6 +32,9 @@ interface Post {
   receiveLocation?: string;
   createdAt?: Timestamp | string | null;
   updatedAt?: Timestamp | string | null;
+  claimedBy?: string; // uid คนรับ
+  claimedByName?: string; // ชื่อคนรับ
+  claimedByPhone?: string; // เบอร์คนรับ
 }
 
 interface UserInfo {
@@ -44,7 +47,7 @@ const STATUS_TABS = [
   { key: "all", label: "ทั้งหมด" },
   { key: "waiting", label: "รอดำเนินการ" },
   { key: "claimed", label: "มีคนรับแล้ว" },
-  { key: "rejected", label: "ถูกลบ" },
+  { key: "rejected", label: "ลบออก (report)" },
 ];
 
 const TYPE_OPTIONS = [
@@ -55,26 +58,43 @@ const TYPE_OPTIONS = [
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; icon: string; bg: string; color: string; border: string }
+  { label: string; bg: string; color: string; border: string }
 > = {
-  waiting: { label: "รอดำเนินการ", icon: "⏳", bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-  claimed:  { label: "มีคนรับแล้ว", icon: "🤝", bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
-  rejected:{ label: "ถูกลบ",       icon: "🗑️", bg: "#ffebee", color: "#c62828", border: "#ef9a9a" },
+  waiting: {
+    label: "รอดำเนินการ",
+    bg: "#fff3e0",
+    color: "#e65100",
+    border: "#ffcc80",
+  },
+  claimed: {
+    label: "มีคนรับแล้ว",
+    bg: "#e8f5e9",
+    color: "#2e7d32",
+    border: "#a5d6a7",
+  },
+  rejected: {
+    label: "ลบออก (report)",
+    bg: "#ffebee",
+    color: "#c62828",
+    border: "#ef9a9a",
+  },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const toDateStr = (val: Timestamp | string | null | undefined): string => {
   if (!val) return "-";
   if (typeof val === "string") return val.slice(0, 10);
-  if (typeof (val as any).toDate === "function")
-    return (val as Timestamp).toDate().toLocaleDateString("th-TH", { dateStyle: "medium" });
+  if (typeof (val as Timestamp).toDate === "function")
+    return (val as Timestamp)
+      .toDate()
+      .toLocaleDateString("th-TH", { dateStyle: "medium" });
   return "-";
 };
 
 const toDateInput = (val: Timestamp | string | null | undefined): string => {
   if (!val) return "";
   if (typeof val === "string") return val.slice(0, 10);
-  if (typeof (val as any).toDate === "function")
+  if (typeof (val as Timestamp).toDate === "function")
     return (val as Timestamp).toDate().toISOString().slice(0, 10);
   return "";
 };
@@ -103,7 +123,10 @@ export default function PostManagementPage() {
   const [ownerInfo, setOwnerInfo] = useState<UserInfo | null>(null);
   const [postLoading, setPostLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // confirm delete
   const [confirmDelete, setConfirmDelete] = useState<Post | null>(null);
@@ -113,32 +136,52 @@ export default function PostManagementPage() {
     const unsub = onSnapshot(
       collection(db, "posts"),
       (snap) => {
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Post));
-        data.sort((a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime());
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Post);
+        data.sort(
+          (a, b) =>
+            toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime(),
+        );
         setPosts(data);
         setLoading(false);
       },
       (err) => {
         console.error("posts:", err);
         setLoading(false);
-      }
+      },
     );
     return () => unsub();
   }, []);
 
   // ── Open detail modal ──
+  const [claimerInfo, setClaimerInfo] = useState<{
+    username?: string;
+    phone?: string;
+  } | null>(null);
+
+  // เรียกตอน openDetail
   const openDetail = async (post: Post) => {
-    setSelectedPost(post);
+    setPostLoading(true); // ✅ loading ก่อน
     setOwnerInfo(null);
-    setPostLoading(true);
+    setClaimerInfo(null);
+
     try {
       if (post.userId) {
         const snap = await getDoc(doc(db, "users", post.userId));
         if (snap.exists()) setOwnerInfo(snap.data() as UserInfo);
       }
+      if (post.claimedBy) {
+        const snap = await getDoc(doc(db, "users", post.claimedBy));
+        if (snap.exists())
+          setClaimerInfo({
+            username: snap.data().username,
+            phone: snap.data().phone,
+          });
+      }
     } catch (e) {
       console.error(e);
     }
+
+    setSelectedPost(post); // ✅ เปิด modal หลัง fetch เสร็จ
     setPostLoading(false);
   };
 
@@ -154,14 +197,20 @@ export default function PostManagementPage() {
   };
 
   // ── Change status ──
-  const handleChangeStatus = async (postId: string, newStatus: "waiting" | "claimed" | "rejected") => {
+  const handleChangeStatus = async (
+    postId: string,
+    newStatus: "waiting" | "claimed" | "rejected",
+  ) => {
     setActionLoading(true);
     try {
       await updateDoc(doc(db, "posts", postId), {
         status: newStatus,
         updatedAt: Timestamp.now(),
       });
-      showToast(`เปลี่ยนสถานะเป็น "${STATUS_CONFIG[newStatus].label}" แล้ว`, "success");
+      showToast(
+        `เปลี่ยนสถานะเป็น "${STATUS_CONFIG[newStatus].label}" แล้ว`,
+        "success",
+      );
       closeDetail();
     } catch {
       showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
@@ -192,7 +241,9 @@ export default function PostManagementPage() {
     if (dateTo && d > dateTo) return false;
     if (search) {
       const q = search.toLowerCase();
-      const hay = [p.category, p.detail, p.locationName, p.username, p.id].join(" ").toLowerCase();
+      const hay = [p.category, p.detail, p.locationName, p.username, p.id]
+        .join(" ")
+        .toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -217,31 +268,71 @@ export default function PostManagementPage() {
         .pm-row:hover { background: #fff7f2 !important; }
         .pm-detail-btn:hover { background: #F97316 !important; color: #fff !important; }
         .pm-status-btn:hover { opacity: 0.8; }
+        .pm-table::-webkit-scrollbar { width: 8px; height: 6px; }
+        .pm-table::-webkit-scrollbar-track { background: transparent; }
+        .pm-table::-webkit-scrollbar-thumb { background: #e8d5c4; border-radius: 99px; }
+        .pm-table::-webkit-scrollbar-thumb:hover { background: #d4b89a; }
       `}</style>
 
       {/* Toast */}
       {toast && (
-        <div style={{ ...s.toast, background: toast.type === "success" ? "#22c55e" : "#ef4444" }}>
-          {toast.type === "success" ? "✅" : "❌"} {toast.msg}
+        <div
+          style={{
+            ...s.toast,
+            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+          }}
+        >
+          {toast.type === "success" ? "SUCCESS" : "ERROR"} {toast.msg}
         </div>
       )}
 
       {/* Header */}
       <div style={s.header}>
-        <div>
-          <h1 style={s.title}>📋 Post Management</h1>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+          }}
+        >
+          <h1
+            style={{
+              ...s.title,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <FileText size={24} />
+            Post Management
+          </h1>
           <p style={s.subtitle}>จัดการโพสต์ทั้งหมดในระบบ</p>
         </div>
         <div style={s.statsRow}>
           {(["waiting", "claimed", "rejected"] as const).map((k) => (
-            <div key={k} style={{ ...s.statCard, borderColor: STATUS_CONFIG[k].border }}>
-              <span style={{ fontSize: 18 }}>{STATUS_CONFIG[k].icon}</span>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: STATUS_CONFIG[k].color, lineHeight: 1 }}>
-                  {stats[k]}
-                </div>
-                <div style={{ fontSize: 11, color: "#a0856a", marginTop: 2 }}>{STATUS_CONFIG[k].label}</div>
-              </div>
+            <div
+              style={{
+                ...s.statCard,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 600 }}>
+                {STATUS_CONFIG[k].label}
+              </span>
+
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: STATUS_CONFIG[k].color,
+                }}
+              >
+                {stats[k]}
+              </span>
+
+              <span style={{ fontSize: 12, color: "#a0856a" }}>โพสต์</span>
             </div>
           ))}
         </div>
@@ -253,42 +344,65 @@ export default function PostManagementPage() {
           {STATUS_TABS.map((t) => (
             <button
               key={t.key}
-              style={{ ...s.tab, ...(statusFilter === t.key ? s.tabActive : {}) }}
+              style={{
+                ...s.tab,
+                ...(statusFilter === t.key ? s.tabActive : {}),
+              }}
               onClick={() => setStatusFilter(t.key)}
             >
               {t.label}
-              {t.key !== "all" && (
-                <span style={{
-                  ...s.tabCount,
-                  background: statusFilter === t.key ? "rgba(255,255,255,0.3)" : "#f0e6dc",
-                  color: statusFilter === t.key ? "#fff" : "#a0856a",
-                }}>
-                  {stats[t.key as keyof typeof stats]}
-                </span>
-              )}
             </button>
           ))}
         </div>
 
         <div style={s.filterRight}>
-          <input
-            style={s.searchInput}
-            placeholder="🔍 ค้นหา หมวดหมู่, รายละเอียด, ชื่อ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select style={s.select} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <div style={s.searchBox}>
+            <Search size={14} style={s.searchIcon} />
+            <input
+              style={s.searchInput}
+              placeholder="ค้นหา หมวดหมู่, สถานที่"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            style={s.select}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
             {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
-          <input type="date" style={s.dateInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <input
+            type="date"
+            style={s.dateInput}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
           <span style={{ color: "#a0856a", fontSize: 13 }}>–</span>
-          <input type="date" style={s.dateInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          {(statusFilter !== "all" || typeFilter !== "all" || dateFrom || dateTo || search) && (
+          <input
+            type="date"
+            style={s.dateInput}
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+          {(statusFilter !== "all" ||
+            typeFilter !== "all" ||
+            dateFrom ||
+            dateTo ||
+            search) && (
             <button
               style={s.clearBtn}
-              onClick={() => { setStatusFilter("all"); setTypeFilter("all"); setDateFrom(""); setDateTo(""); setSearch(""); }}
+              onClick={() => {
+                setStatusFilter("all");
+                setTypeFilter("all");
+                setDateFrom("");
+                setDateTo("");
+                setSearch("");
+              }}
             >
               ล้างตัวกรอง
             </button>
@@ -297,7 +411,7 @@ export default function PostManagementPage() {
       </div>
 
       {/* Table */}
-      <div style={s.tableWrap}>
+      <div style={s.tableWrap} className="pm-table">
         {loading ? (
           <div style={s.empty}>กำลังโหลด...</div>
         ) : filtered.length === 0 ? (
@@ -306,37 +420,65 @@ export default function PostManagementPage() {
           <table style={s.table}>
             <thead>
               <tr>
-                {["ประเภท", "หมวดหมู่", "รายละเอียด", "เจ้าของ", "วันที่", "สถานะ", "จัดการ"].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
+                {[
+                  "ประเภท",
+                  "หมวดหมู่",
+                  "สถานที่",
+                  "เจ้าของ",
+                  "วันที่",
+                  "สถานะ",
+                  "จัดการ",
+                ].map((h) => (
+                  <th key={h} style={s.th}>
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => {
-                const st = STATUS_CONFIG[p.status ?? "waiting"] ?? STATUS_CONFIG.waiting;
+                const st =
+                  STATUS_CONFIG[p.status ?? "waiting"] ?? STATUS_CONFIG.waiting;
                 return (
                   <tr key={p.id} className="pm-row" style={s.tr}>
                     <td style={s.td}>
-                      <span style={{
-                        ...s.typeBadge,
-                        background: p.type === "found" ? "#e8f5e9" : "#fff3e0",
-                        color: p.type === "found" ? "#2e7d32" : "#e65100",
-                        border: `1px solid ${p.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
-                      }}>
-                        {p.type === "found" ? "🟢 พบของ" : "🟠 ของหาย"}
+                      <span
+                        style={{
+                          ...s.typeBadge,
+                          background:
+                            p.type === "found" ? "#e8f5e9" : "#fff3e0",
+                          color: p.type === "found" ? "#2e7d32" : "#e65100",
+                          border: `1px solid ${p.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
+                        }}
+                      >
+                        {p.type === "found" ? "พบของ" : "ของหาย"}
                       </span>
                     </td>
                     <td style={s.td}>{p.category ?? "-"}</td>
                     <td style={{ ...s.td, maxWidth: 180 }}>
-                      <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.detail ?? "-"}
+                      <span
+                        style={{
+                          display: "block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.location ?? "-"}
                       </span>
                     </td>
                     <td style={s.td}>{p.username ? `@${p.username}` : "-"}</td>
                     <td style={s.td}>{toDateStr(p.createdAt)}</td>
                     <td style={s.td}>
-                      <span style={{ ...s.statusBadge, background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-                        {st.icon} {st.label}
+                      <span
+                        style={{
+                          ...s.statusBadge,
+                          background: st.bg,
+                          color: st.color,
+                          border: `1px solid ${st.border}`,
+                        }}
+                      >
+                        {st.label}
                       </span>
                     </td>
                     <td style={s.td}>
@@ -346,14 +488,13 @@ export default function PostManagementPage() {
                           style={s.detailBtn}
                           onClick={() => openDetail(p)}
                         >
-                          <Eye size={13} style={{ marginRight: 4 }} />
-                          ดู
+                          <Eye size={14} />
                         </button>
                         <button
                           style={s.deleteBtn}
                           onClick={() => setConfirmDelete(p)}
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -368,46 +509,83 @@ export default function PostManagementPage() {
       {/* ── Detail Modal ── */}
       {selectedPost && (
         <div style={s.overlay} onClick={closeDetail}>
-          <div style={s.modal} className="pm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="pm-modal" style={{ overflowY: "auto", padding: "28px 30px", flex: 1, scrollbarWidth: "thin", scrollbarColor: "#e8d5c4 transparent" }}>
+          <div
+            style={s.modal}
+            className="pm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="pm-modal"
+              style={{
+                overflowY: "auto",
+                padding: "28px 30px",
+                flex: 1,
+                scrollbarWidth: "thin",
+                scrollbarColor: "#e8d5c4 transparent",
+              }}
+            >
               <div style={s.modalHeader}>
-                <h2 style={s.modalTitle}>📄 รายละเอียดโพสต์</h2>
-                <button style={s.closeBtn} onClick={closeDetail}>✕</button>
+                <h2 style={s.modalTitle}>รายละเอียดโพสต์</h2>
+                <button style={s.closeBtn} onClick={closeDetail}>
+                  ✕
+                </button>
               </div>
 
               {/* Type + Status badges */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <span style={{
-                  ...s.typeBadge,
-                  background: selectedPost.type === "found" ? "#e8f5e9" : "#fff3e0",
-                  color: selectedPost.type === "found" ? "#2e7d32" : "#e65100",
-                  border: `1px solid ${selectedPost.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
-                }}>
-                  {selectedPost.type === "found" ? "🟢 พบของ" : "🟠 ของหาย"}
+                <span
+                  style={{
+                    ...s.typeBadge,
+                    background:
+                      selectedPost.type === "found" ? "#e8f5e9" : "#fff3e0",
+                    color:
+                      selectedPost.type === "found" ? "#2e7d32" : "#e65100",
+                    border: `1px solid ${selectedPost.type === "found" ? "#a5d6a7" : "#ffcc80"}`,
+                  }}
+                >
+                  {selectedPost.type === "found" ? "พบของ" : "ของหาย"}
                 </span>
                 {selectedPost.status && STATUS_CONFIG[selectedPost.status] && (
-                  <span style={{
-                    ...s.typeBadge,
-                    background: STATUS_CONFIG[selectedPost.status].bg,
-                    color: STATUS_CONFIG[selectedPost.status].color,
-                    border: `1px solid ${STATUS_CONFIG[selectedPost.status].border}`,
-                  }}>
-                    {STATUS_CONFIG[selectedPost.status].icon} {STATUS_CONFIG[selectedPost.status].label}
+                  <span
+                    style={{
+                      ...s.typeBadge,
+                      background: STATUS_CONFIG[selectedPost.status].bg,
+                      color: STATUS_CONFIG[selectedPost.status].color,
+                      border: `1px solid ${STATUS_CONFIG[selectedPost.status].border}`,
+                    }}
+                  >
+                    {STATUS_CONFIG[selectedPost.status].label}
                   </span>
                 )}
               </div>
 
               {/* Images */}
               {selectedPost.images && selectedPost.images.length > 0 && (
-                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
                   {selectedPost.images.slice(0, 4).map((url, i) => (
                     <img
                       key={i}
                       src={url}
                       alt={`img-${i}`}
                       onClick={() => setPreviewImage(url)}
-                      style={{ width: 90, height: 90, borderRadius: 10, objectFit: "cover", border: "1px solid #f0e6dc", cursor: "pointer" }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 10,
+                        objectFit: "cover",
+                        border: "1px solid #f0e6dc",
+                        cursor: "pointer",
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   ))}
                 </div>
@@ -417,44 +595,148 @@ export default function PostManagementPage() {
               <div style={s.section}>
                 <p style={s.sectionTitle}>ข้อมูลโพสต์</p>
                 <InfoRow label="Post ID" value={selectedPost.id} mono />
-                <InfoRow label="เจ้าของโพสต์" value={
-                  postLoading ? "กำลังโหลด..." :
-                  ownerInfo?.username ? `@${ownerInfo.username}` :
-                  ownerInfo?.email ?? selectedPost.username ?? "-"
-                } />
-                <InfoRow label="หมวดหมู่" value={selectedPost.category ?? "-"} />
-                <InfoRow label="รายละเอียด" value={selectedPost.detail ?? "-"} />
-                <InfoRow label="วันที่" value={selectedPost.date ?? toDateStr(selectedPost.createdAt)} />
-                <InfoRow label="สถานที่" value={selectedPost.locationName ?? selectedPost.location ?? "-"} />
-                {selectedPost.locationDetail && <InfoRow label="รายละเอียดสถานที่" value={selectedPost.locationDetail} />}
+                <InfoRow
+                  label="เจ้าของโพสต์"
+                  value={
+                    //postLoading ? "กำลังโหลด..." :
+                    ownerInfo?.username
+                      ? `@${ownerInfo.username}`
+                      : (ownerInfo?.email ?? selectedPost.username ?? "-")
+                  }
+                />
+                <InfoRow
+                  label="หมวดหมู่"
+                  value={selectedPost.category ?? "-"}
+                />
+                <InfoRow
+                  label="รายละเอียด"
+                  value={selectedPost.detail ?? "-"}
+                />
+                <InfoRow
+                  label="วันที่"
+                  value={selectedPost.date ?? toDateStr(selectedPost.createdAt)}
+                />
+                <InfoRow
+                  label="สถานที่"
+                  value={
+                    selectedPost.locationName ?? selectedPost.location ?? "-"
+                  }
+                />
+                {selectedPost.locationDetail && (
+                  <InfoRow
+                    label="รายละเอียดสถานที่"
+                    value={selectedPost.locationDetail}
+                  />
+                )}
                 {selectedPost.latitude && selectedPost.longitude && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 110 }}>พิกัดสถานที่</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#a0856a",
+                        fontWeight: 700,
+                        minWidth: 110,
+                        textAlign: "left",
+                      }}
+                    >
+                      พิกัดสถานที่
+                    </span>
                     <a
-                      href={`https://www.google.com/maps?q=${selectedPost.latitude},${selectedPost.longitude}`}
+                      href={`https://www.google.com/maps?q=${encodeURIComponent(selectedPost.location ?? "-")}&ll=${selectedPost.latitude},${selectedPost.longitude}`}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#F97316", fontWeight: 700, textDecoration: "none", background: "#fff7f0", border: "1px solid #f0e6dc", borderRadius: 8, padding: "3px 8px" }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        color: "#F97316",
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        background: "#fff7f0",
+                        border: "1px solid #f0e6dc",
+                        borderRadius: 8,
+                        padding: "3px 8px",
+                      }}
                     >
                       <Map size={13} style={{ marginRight: 2 }} />
                       เปิด Google Maps
                     </a>
                   </div>
                 )}
-                <InfoRow label="สถานที่รับคืน" value={selectedPost.receiveLocation ?? "-"} />
+                <InfoRow
+                  label="สถานที่รับคืน"
+                  value={selectedPost.receiveLocation ?? "-"}
+                />
                 {selectedPost.receiveLocationImage && (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 110 }}>รูปจุดรับคืน</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: 6,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#a0856a",
+                        fontWeight: 700,
+                        minWidth: 110,
+                        textAlign: "left",
+                      }}
+                    >
+                      รูปจุดรับคืน
+                    </span>
                     <img
                       src={selectedPost.receiveLocationImage}
-                      onClick={() => setPreviewImage(selectedPost.receiveLocationImage!)}
+                      onClick={() =>
+                        setPreviewImage(selectedPost.receiveLocationImage!)
+                      }
                       alt="receive"
-                      style={{ width: 80, height: 80, borderRadius: 10, objectFit: "cover", border: "1px solid #f0e6dc", cursor: "pointer" }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 10,
+                        objectFit: "cover",
+                        border: "1px solid #f0e6dc",
+                        cursor: "pointer",
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   </div>
                 )}
-                <InfoRow label="สร้างเมื่อ" value={toDateStr(selectedPost.createdAt)} />
+                <InfoRow
+                  label="สร้างเมื่อ"
+                  value={toDateStr(selectedPost.createdAt)}
+                />
+                {selectedPost.status === "claimed" && (
+                  <>
+                    <InfoRow
+                      label="รับโดย"
+                      value={
+                        claimerInfo?.username ??
+                        selectedPost.claimedByName ??
+                        "-"
+                      }
+                    />
+                    <InfoRow
+                      label="เบอร์คนรับ"
+                      value={
+                        claimerInfo?.phone ?? selectedPost.claimedByPhone ?? "-"
+                      }
+                    />
+                  </>
+                )}
               </div>
 
               {/* Change Status */}
@@ -471,18 +753,25 @@ export default function PostManagementPage() {
                         padding: "8px 16px",
                         borderRadius: 12,
                         border: `1px solid ${STATUS_CONFIG[st].border}`,
-                        background: selectedPost.status === st ? STATUS_CONFIG[st].bg : "#fff",
+                        background:
+                          selectedPost.status === st
+                            ? STATUS_CONFIG[st].bg
+                            : "#fff",
                         color: STATUS_CONFIG[st].color,
                         fontSize: 13,
                         fontWeight: 700,
-                        cursor: selectedPost.status === st ? "default" : "pointer",
+                        cursor:
+                          selectedPost.status === st ? "default" : "pointer",
                         fontFamily: "'Sarabun', sans-serif",
                         opacity: selectedPost.status === st ? 1 : 0.85,
-                        boxShadow: selectedPost.status === st ? `0 0 0 2px ${STATUS_CONFIG[st].border}` : "none",
+                        boxShadow:
+                          selectedPost.status === st
+                            ? `0 0 0 2px ${STATUS_CONFIG[st].border}`
+                            : "none",
                       }}
                     >
-                      {STATUS_CONFIG[st].icon} {STATUS_CONFIG[st].label}
-                      {selectedPost.status === st && " ✓"}
+                      {STATUS_CONFIG[st].label}
+                      {selectedPost.status === st}
                     </button>
                   ))}
                 </div>
@@ -505,28 +794,56 @@ export default function PostManagementPage() {
       {/* ── Confirm Delete Modal ── */}
       {confirmDelete && (
         <div style={s.overlay} onClick={() => setConfirmDelete(null)}>
-          <div style={{ ...s.modal, maxWidth: 420, padding: 28 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ ...s.modal, maxWidth: 420, padding: 28 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ textAlign: "center", padding: "8px 0 20px" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: "#5A4633", margin: "0 0 8px" }}>ยืนยันการลบโพสต์</h3>
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#5A4633",
+                  margin: "0 0 8px",
+                }}
+              >
+                ยืนยันการลบโพสต์
+              </h3>
               <p style={{ fontSize: 13, color: "#a0856a", margin: 0 }}>
                 โพสต์นี้จะถูกลบออกจากระบบถาวร ไม่สามารถกู้คืนได้
               </p>
-              {confirmDelete.detail && (
-                <div style={{ margin: "16px 0 0", background: "#fff7f0", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#5A4633", border: "1px solid #f0e6dc" }}>
-                  "{confirmDelete.detail}"
-                </div>
-              )}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button
-                style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1px solid #e8d5c4", background: "#fff", color: "#a0856a", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Sarabun', sans-serif" }}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 14,
+                  border: "1px solid #e8d5c4",
+                  background: "#fff",
+                  color: "#a0856a",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "'Sarabun', sans-serif",
+                }}
                 onClick={() => setConfirmDelete(null)}
               >
                 ยกเลิก
               </button>
               <button
-                style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: "#ef4444", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Sarabun', sans-serif" }}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 14,
+                  border: "none",
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "'Sarabun', sans-serif",
+                }}
                 onClick={() => handleDelete(confirmDelete)}
                 disabled={actionLoading}
               >
@@ -541,9 +858,26 @@ export default function PostManagementPage() {
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
         >
-          <img src={previewImage} style={{ maxWidth: "90%", maxHeight: "90%", borderRadius: 16, objectFit: "contain" }} alt="preview" />
+          <img
+            src={previewImage}
+            style={{
+              maxWidth: "90%",
+              maxHeight: "90%",
+              borderRadius: 16,
+              objectFit: "contain",
+            }}
+            alt="preview"
+          />
         </div>
       )}
     </div>
@@ -551,13 +885,44 @@ export default function PostManagementPage() {
 }
 
 // ── InfoRow ────────────────────────────────────────────────────────────────
-function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-      <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 110, textAlign: "left" }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        marginBottom: 6,
+        alignItems: "flex-start",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          color: "#a0856a",
+          fontWeight: 700,
+          minWidth: 110,
+          textAlign: "left",
+        }}
+      >
         {label}
       </span>
-      <span style={{ fontSize: 13, color: "#5A4633", fontFamily: mono ? "monospace" : "inherit", wordBreak: "break-all" }}>
+      <span
+        style={{
+          fontSize: 13,
+          color: "#5A4633",
+          fontFamily: mono ? "monospace" : "inherit",
+          wordBreak: "break-all",
+          textAlign: "left",
+        }}
+      >
         {value}
       </span>
     </div>
@@ -575,20 +940,45 @@ const s: Record<string, React.CSSProperties> = {
     gap: 20,
     fontFamily: "'Sarabun', sans-serif",
   },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 },
-  title: { fontSize: 26, fontWeight: 800, color: "#5A4633", margin: 0, letterSpacing: "-0.5px" },
-  subtitle: { fontSize: 13, color: "#a0856a", marginTop: 4, marginLeft: 4 },
-  statsRow: { display: "flex", gap: 10 },
-  statCard: {
+  header: {
     display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
-    background: "rgba(255,255,255,0.75)",
-    border: "1px solid",
-    borderRadius: 16,
-    padding: "10px 16px",
+    gap: 16,
+    flexWrap: "wrap",
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: "#5A4633",
+    margin: 0,
+    letterSpacing: "-0.5px",
+    fontFamily: "'Inter', sans-serif",
+  },
+
+  subtitle: {
+    fontSize: 13,
+    color: "#a0856a",
+    marginTop: 6,
+    marginLeft: 0,
+    marginBottom: 0,
+  },
+  statsRow: {
+    display: "flex",
+    gap: 14,
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  statCard: {
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid #f0e6dc",
+    borderRadius: 20,
+    padding: "8px 18px",
+    fontSize: 13,
+    color: "#a0856a",
+    fontWeight: 600,
     backdropFilter: "blur(8px)",
-    boxShadow: "0 2px 8px rgba(90,70,51,0.06)",
   },
   filterBox: {
     display: "flex",
@@ -616,16 +1006,36 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontFamily: "'Sarabun', sans-serif",
   },
-  tabActive: { background: "#F97316", color: "#fff", border: "1px solid #F97316" },
+  tabActive: {
+    background: "#F97316",
+    color: "#fff",
+    border: "1px solid #F97316",
+  },
   tabCount: {
     padding: "1px 7px",
     borderRadius: 20,
     fontSize: 11,
     fontWeight: 700,
   },
-  filterRight: { display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", flexWrap: "wrap" },
+  filterRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginLeft: "auto",
+    flexWrap: "wrap",
+  },
+  searchBox: {
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: 12,
+    color: "#a0856a",
+  },
   searchInput: {
-    padding: "7px 12px",
+    padding: "7px 12px 7px 34px",
     borderRadius: 10,
     border: "1px solid #e8d5c4",
     background: "#fff",
@@ -670,7 +1080,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.9)",
     boxShadow: "0 2px 12px rgba(90,70,51,0.08)",
-    overflow: "hidden",
+    overflow: "auto",
     flex: 1,
   },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
@@ -686,37 +1096,60 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #f0e6dc",
   },
   tr: { borderBottom: "1px solid #fdf0e8", transition: "background 0.15s" },
-  td: { padding: "12px 16px", color: "#5A4633", verticalAlign: "middle" },
-  typeBadge: { padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" },
-  statusBadge: { padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" },
+  td: {
+    padding: "12px 16px",
+    color: "#5A4633",
+    verticalAlign: "middle",
+    textAlign: "left",
+  },
+  typeBadge: {
+    padding: "3px 10px",
+    borderRadius: 20,
+    fontSize: 12,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+  statusBadge: {
+    padding: "4px 12px",
+    borderRadius: 20,
+    fontSize: 12,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
   detailBtn: {
     display: "inline-flex",
     alignItems: "center",
-    padding: "6px 12px",
-    borderRadius: 10,
+    justifyContent: "center",
+    width: 38,
+    height: 38,
+    padding: 0,
+    borderRadius: 12,
     border: "1px solid #F97316",
     background: "transparent",
     color: "#F97316",
-    fontSize: 12,
-    fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
     transition: "all 0.15s",
   },
   deleteBtn: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "6px 8px",
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    padding: 0,
+    borderRadius: 12,
     border: "1px solid #ef9a9a",
     background: "#fff5f5",
     color: "#c62828",
-    fontSize: 12,
     cursor: "pointer",
     transition: "all 0.15s",
   },
-  empty: { padding: "60px 20px", textAlign: "center", color: "#c8a882", fontSize: 14 },
+  empty: {
+    padding: "60px 20px",
+    textAlign: "center",
+    color: "#c8a882",
+    fontSize: 14,
+  },
   overlay: {
     position: "fixed",
     inset: 0,
@@ -740,9 +1173,27 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
     fontFamily: "'Sarabun', sans-serif",
   },
-  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: 800, color: "#5A4633", margin: 0 },
-  closeBtn: { background: "none", border: "none", fontSize: 18, color: "#a0856a", cursor: "pointer", padding: "4px 8px" },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#5A4633",
+    margin: 0,
+    fontFamily: "'Sarabun', sans-serif",
+  },
+  closeBtn: {
+    background: "none",
+    border: "none",
+    fontSize: 18,
+    color: "#a0856a",
+    cursor: "pointer",
+    padding: "4px 8px",
+  },
   section: {
     background: "rgba(255,255,255,0.8)",
     borderRadius: 16,

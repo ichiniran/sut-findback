@@ -1,14 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-
+import { useEffect, useRef } from 'react';
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 interface PostCardProps {
   postId?: string;
   userId?: string;
@@ -32,8 +27,12 @@ interface PostCardProps {
   longitude?: number;
   currentStatus?: string;
 }
-
+ const COLORS = {
+  green: '#16a34a',
+  greenLight: '#f0fdf4',
+};
 export default function PostCard(props: PostCardProps) {
+ 
   const {
     postId, userId, type = 'found',
     image, images, receiveLocationImage,
@@ -84,10 +83,17 @@ export default function PostCard(props: PostCardProps) {
   return (
     <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.88}>
       <View style={styles.cardInner}>
-        {thumbUri ? (
-          <Image source={{ uri: thumbUri }} style={styles.image} resizeMode="cover" />
+       {thumbUri ? (
+          <View>
+            <Image source={{ uri: thumbUri }} style={styles.image} resizeMode="cover" />
+            <StatusChip status={(currentStatus as 'waiting' | 'claimed') || 'waiting'} isFound={type === 'found'} />
+          </View>
         ) : (
-          <Image source={image as number} style={styles.image} resizeMode="cover" />
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={48} color="rgba(63,63,63,0.4)" />
+            <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
+            <StatusChip status={(currentStatus as 'waiting' | 'claimed') || 'waiting'} isFound={type === 'found'} />
+          </View>
         )}
 
         <View style={styles.cardBody}>
@@ -118,7 +124,59 @@ export default function PostCard(props: PostCardProps) {
     </TouchableOpacity>
   );
 }
+function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFound: boolean }) {
+  const opacity = useRef(new Animated.Value(1)).current;
 
+  useEffect(() => {
+    if (status === 'claimed') return;
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    blink.start();
+    return () => blink.stop();
+  }, [status]);
+
+  if (status === 'claimed') {
+    return (
+      <View style={[chipStyles.badge, { backgroundColor: COLORS.greenLight }]}>
+        <Text style={[chipStyles.statusText, { color: COLORS.green }]}>
+          ● {isFound ? 'เจ้าของมารับแล้ว' : 'ได้รับของแล้ว'}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!isFound) {
+    return (
+      <View style={[chipStyles.badge, { backgroundColor: '#fef2f2ad' }]}>
+        <Animated.Text style={[chipStyles.statusText, { color: '#f00000', opacity }]}>
+          ● ยังตามหาของอยู่
+        </Animated.Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[chipStyles.badge, { backgroundColor: '#fef7f2' }]}>
+      <Animated.Text style={[chipStyles.statusText, { color: '#E67E22', opacity }]}>
+        ● รอเจ้าของมารับ
+      </Animated.Text>
+    </View>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: 8, right: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  statusText: { fontSize: 10, fontWeight: '600' },
+});
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff', borderRadius: 15,
@@ -130,6 +188,19 @@ const styles = StyleSheet.create({
   },
   cardInner: { borderRadius: 15, overflow: 'hidden' },
   image: { width: '100%', height: 150 },
+  imagePlaceholder: {
+  width: '100%',
+  height: 150,
+  backgroundColor: '#f6f6f6',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+noImageText: {
+  marginTop: 6,
+  fontSize: 12,
+  color: '#999',
+},
   cardBody: { padding: 10 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: '#5A4633' },
   cardDesc: { fontSize: 12, color: '#777', marginVertical: 3 },
@@ -137,7 +208,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 20, marginTop: 5,
+    borderRadius: 20, marginTop: 5,marginRight: 8, 
   },
   locationText: { fontSize: 12, marginLeft: 4, color: '#fff' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },

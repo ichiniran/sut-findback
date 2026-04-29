@@ -1,133 +1,173 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PostScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-
-      
-      <View style={styles.header}>
-        <Image
-          source={require('../../assets/images/logo_sutfindback.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </View>
-
-     
-      <View style={styles.centerContent}>
-
-        <View style={styles.row}>
-
-          {/* FOUND */}
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => router.push('/post-form?type=found' as any)}
-          >
-            <LinearGradient
-              colors={['#ffffff', '#ffffff']}
-              style={styles.cardInner}
-            >
-              <View style={styles.iconBox}>
-                <Ionicons name="search" size={28} color="#F97316" />
-              </View>
-              <Text style={styles.title}>แจ้งพบของ</Text>
-              <Text style={styles.desc}>ช่วยตามหาเจ้าของ</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* LOST */}
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => router.push('/post-form?type=lost' as any)}
-          >
-            <LinearGradient
-              colors={['#ffffff', '#ffffff']}
-              style={styles.cardInner}
-            >
-              <View style={styles.iconBox}>
-                <Ionicons name="alert-circle" size={28} color="#F97316" />
-              </View>
-              <Text style={styles.title}>แจ้งของหาย</Text>
-              <Text style={styles.desc}>ตามหาของที่หาย</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <View style={styles.inner}>
+        {/* Logo */}
+        <View style={styles.logoBlock}>
+          <Image
+            source={require("../../assets/images/openlogo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
-      </View>
+        {/* Buttons */}
+        <View style={styles.btnGroup}>
+          {/* พบของ — solid orange */}
+          <TouchableOpacity
+            style={styles.btnOutline}
+            activeOpacity={0.85}
+            onPress={() => router.push("/post-form?type=found" as any)}
+          >
+            <View style={styles.iconWrapOrange}>
+              <Ionicons name="map-outline" size={20} color="#F97316" />
+            </View>
+            <View style={styles.btnText}>
+              <Text style={styles.btnTitleDark}>พบของ</Text>
+              <Text style={styles.btnSubOrange}>แจ้งว่าพบของผู้อื่น</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#FBAA58" />
+          </TouchableOpacity>
 
+          {/* ของหาย — outlined */}
+          <TouchableOpacity
+            style={styles.btnOutline}
+            activeOpacity={0.85}
+            onPress={() => router.push("/post-form?type=lost" as any)}
+          >
+            <View style={styles.iconWrapOrange}>
+              <Ionicons name="search-outline" size={20} color="#F97316" />
+            </View>
+            <View style={styles.btnText}>
+              <Text style={styles.btnTitleDark}>ของหาย</Text>
+              <Text style={styles.btnSubOrange}>แจ้งว่าของตัวเองหาย</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#FBAA58" />
+          </TouchableOpacity>
+
+          {/* Info Banner */}
+          <View style={styles.infoBanner}>
+            <Ionicons
+              name="information-circle-outline"
+              size={18}
+              color="#FBAA58"
+            />
+            <Text style={styles.infoText}>
+              กรุณาให้ข้อมูลที่ถูกต้องและครบถ้วน
+              เพื่อช่วยให้การตามหาของรวดเร็วขึ้น
+            </Text>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#FFFAF5" },
+  inner: {
     flex: 1,
-    backgroundColor: '#FFFAF5',
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
   },
 
-  header: {
-    alignItems: 'center',
-    paddingTop: 50,  
+  logoBlock: {
+    gap: 4,
+    marginBottom: 30,
+    marginTop: -200,
+    alignItems: "center",
   },
-
   logo: {
     width: 200,
-    height: 80,
+    height: 200,
+    shadowColor: "#ffbd8e",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
   },
+  logoSub: { fontSize: 12, color: "#FBAA58" },
 
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: -40,
-  },
+  illustBox: { marginBottom: 32 },
 
-  row: {
-    flexDirection: 'row',
+  question: { fontSize: 13, color: "#9A8070", marginBottom: 28 },
+
+  btnGroup: { width: "100%", gap: 14 },
+
+  btnSolid: {
+    backgroundColor: "#F97316",
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 14,
   },
-
-  card: {
-    flex: 1,
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-
-  cardInner: {
-    borderRadius: 22,
-    padding: 24,
-    alignItems: 'center',
-    gap: 10,
-  },
-
-  iconBox: {
-    backgroundColor: '#ffffff',
-    padding: 14,
+  btnOutline: {
+    backgroundColor: "#fff",
     borderRadius: 16,
-    marginBottom: 6,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderWidth: 1,
+    borderColor: "#F0E6DA",
   },
 
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
+  iconWrapWhite: {
+    width: 40,
+    height: 40,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapOrange: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#FFF0E0",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  desc: {
-    fontSize: 12,
-    color: '#888',
+  btnText: { flex: 1 },
+  btnTitleWhite: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+    marginBottom: 2,
+  },
+  btnSubWhite: { fontSize: 13, color: "rgba(255,255,255,0.75)" },
+  btnTitleDark: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#5A4633",
+    marginBottom: 2,
+  },
+  btnSubOrange: { fontSize: 13, color: "#FBAA58" },
+  infoBanner: {
+    marginTop: 16,
+    backgroundColor: "#fff3e687",
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    width: "100%",
+    borderColor: "#FBAA58",
+    borderWidth: 1,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#FBAA58",
+    lineHeight: 18,
   },
 });

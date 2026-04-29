@@ -41,7 +41,7 @@ const STANDARD_LOCATIONS = [
 
 export default function LostScreen({
   searchQuery = '',
-  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '' },
+  filters = { category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '', status: 'all' },
 }: {
   searchQuery?: string;
   filters?: FilterOptions;

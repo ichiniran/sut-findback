@@ -1,5 +1,11 @@
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import {
+  FileText,
+  Flag,
+  LayoutDashboard,
+  Users
+} from "lucide-react";
 import { useEffect, useState } from 'react';
 import './App.css';
 import logo from './assets/logo_sutfindback.png';
@@ -57,28 +63,28 @@ export default function App() {
             className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActivePage('dashboard')}
           >
-            📊 Dashboard
+            <LayoutDashboard size={18} /> Dashboard
           </button>
 
           <button
             className={`nav-item ${activePage === 'posts' ? 'active' : ''}`}
             onClick={() => setActivePage('posts')}
           >
-            📦 Post Management
+            <FileText size={18} /> Post Management
           </button>
 
           <button
             className={`nav-item ${activePage === 'reports' ? 'active' : ''}`}
             onClick={() => setActivePage('reports')}
           >
-            🚩 Reports
+            <Flag size={18} /> Reports
           </button>
 
           <button
             className={`nav-item ${activePage === 'users' ? 'active' : ''}`}
             onClick={() => setActivePage('users')}
           >
-            👤 User Management
+            <Users size={18} /> User Management
           </button>
         </nav>
 

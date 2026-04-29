@@ -10,7 +10,7 @@ import {
     View,
 } from "react-native";
 
-// ✅ แยกออกมานอก component (สำคัญมาก)
+
 function MenuItem({ icon, label, danger, onPress }: any) {
   return (
     <TouchableOpacity style={styles.item} onPress={onPress}>
@@ -30,6 +30,8 @@ export default function BottomSheetMenu({
   onEdit,
   onDelete,
   onReport,
+  isSaved,
+  onShare,
 }: any) {
   const translateY = useRef(new Animated.Value(300)).current;
 
@@ -82,10 +84,10 @@ export default function BottomSheetMenu({
             {...panResponder.panHandlers}
           >
             <View style={styles.dragBar} />
-
+           
             <MenuItem
-              icon="bookmark-outline"
-              label="Save"
+              icon={isSaved ? "bookmark" : "bookmark-outline"}  
+              label={isSaved ? "Unsave" : "Save"}               
               onPress={() => {
                 onSave?.();
                 close();
