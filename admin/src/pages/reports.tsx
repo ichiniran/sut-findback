@@ -40,7 +40,7 @@ interface Post {
   date?: string;
   status?: string;
   userId?: string;
-  username?: string;   // ← เพิ่ม
+  username?: string; // ← เพิ่ม
   postId?: string;
   receiveLocation?: string;
   createdAt?: Timestamp | string | null;
@@ -71,7 +71,9 @@ const toDateStr = (val: Timestamp | string | null | undefined): string => {
   if (!val) return "-";
   if (typeof val === "string") return val.slice(0, 10);
   if (typeof (val as any).toDate === "function")
-    return (val as Timestamp).toDate().toLocaleDateString("th-TH", { dateStyle: "medium" });
+    return (val as Timestamp)
+      .toDate()
+      .toLocaleDateString("th-TH", { dateStyle: "medium" });
   return "-";
 };
 
@@ -89,7 +91,9 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   // filters
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "reviewed">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "reviewed"
+  >("all");
   const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -101,28 +105,33 @@ export default function ReportsPage() {
   const [postOwnerUsername, setPostOwnerUsername] = useState<string>("");
   const [postLoading, setPostLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
   const toDate = (val: Timestamp | string | null | undefined): Date => {
-  if (!val) return new Date(0);
-  if (val instanceof Timestamp) return val.toDate();
-  return new Date(val);
-};
+    if (!val) return new Date(0);
+    if (val instanceof Timestamp) return val.toDate();
+    return new Date(val);
+  };
   // ── Firestore listener ──
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, "reports"),
       (snap) => {
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Report));
+        const data = snap.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as Report,
+        );
         data.sort((a, b) => {
-        return toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime();
+          return toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime();
         });
-                setReports(data);
+        setReports(data);
         setLoading(false);
       },
       (err) => {
         console.error("reports:", err);
         setLoading(false);
-      }
+      },
     );
     return () => unsub();
   }, []);
@@ -151,9 +160,13 @@ export default function ReportsPage() {
           try {
             const ownerSnap = await getDoc(doc(db, "users", postData.userId));
             if (ownerSnap.exists()) {
-              setPostOwnerUsername((ownerSnap.data() as UserInfo).username ?? "");
+              setPostOwnerUsername(
+                (ownerSnap.data() as UserInfo).username ?? "",
+              );
             }
-          } catch (_) {}
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
       if (userSnap.exists()) setReporterInfo(userSnap.data() as UserInfo);
@@ -176,83 +189,86 @@ export default function ReportsPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Action: reviewed only ──
   // ── ฟังก์ชันส่ง notification ──
-const sendReviewedNotification = async (report: Report, post: Post | null) => {
-  await addDoc(
-    collection(db, 'users', report.reportedBy, 'notifications'),
-    {
-      type: 'report_reviewed',
-      title: 'ผลการตรวจสอบรายงาน',
-      desc: 'โพสต์ที่คุณรายงานได้รับการตรวจสอบแล้ว',
-      postId: report.postId || '',
-      postTitle: post?.category || '',
-      detail: post?.detail || '',
-      location: post?.location || '',
-      locationName: post?.locationName || '',
-      locationDetail: post?.locationDetail || '',
-      receiveLocation: post?.receiveLocation || '',
-      username: post?.username || '',
-      userId: post?.userId || '',
-      date: post?.date || '',
-      images: post?.images ? JSON.stringify(post.images) : '',
-      itemImage: Array.isArray(post?.images) ? post.images[0] : '',
-      category: post?.category || '',
-      latitude: post?.latitude || '',
-      longitude: post?.longitude || '',
-      currentStatus: post?.status || '',
+  const sendReviewedNotification = async (
+    report: Report,
+    post: Post | null,
+  ) => {
+    await addDoc(collection(db, "users", report.reportedBy, "notifications"), {
+      type: "report_reviewed",
+      title: "ผลการตรวจสอบรายงาน",
+      desc: "โพสต์ที่คุณรายงานได้รับการตรวจสอบแล้ว",
+      postId: report.postId || "",
+      postTitle: post?.category || "",
+      detail: post?.detail || "",
+      location: post?.location || "",
+      locationName: post?.locationName || "",
+      locationDetail: post?.locationDetail || "",
+      receiveLocation: post?.receiveLocation || "",
+      username: post?.username || "",
+      userId: post?.userId || "",
+      date: post?.date || "",
+      images: post?.images ? JSON.stringify(post.images) : "",
+      // เช็คก่อนว่ามีรูปมั้ย
+      itemImage:
+        Array.isArray(post?.images) && post.images.length > 0
+          ? post.images[0]
+          : "",
+      category: post?.category || "",
+      latitude: post?.latitude ?? "",
+      longitude: post?.longitude ?? "",
+      currentStatus: post?.status || "",
       isRead: false,
       createdAt: serverTimestamp(),
+    });
+  };
+
+  // ── Action: reviewed only ──
+  const handleReviewed = async () => {
+    if (!selectedReport) return;
+    setActionLoading(true);
+    try {
+      await updateDoc(doc(db, "reports", selectedReport.id), {
+        status: "reviewed",
+        reviewedAt: Timestamp.now(),
+        notified: true,
+      });
+
+      // ✅ ส่ง notification
+      await sendReviewedNotification(selectedReport, selectedPost);
+
+      showToast("ตรวจสอบแล้ว ไม่มีการลบโพสต์", "success");
+      closeDetail();
+    } catch {
+      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
     }
-  );
-};
+    setActionLoading(false);
+  };
 
-// ── Action: reviewed only ──
-const handleReviewed = async () => {
-  if (!selectedReport) return;
-  setActionLoading(true);
-  try {
-    await updateDoc(doc(db, 'reports', selectedReport.id), {
-      status: 'reviewed',
-      reviewedAt: Timestamp.now(),
-      notified: true,
-    });
+  // ── Action: reject post + reviewed report ──
+  const handleRejectPost = async () => {
+    if (!selectedReport) return;
+    setActionLoading(true);
+    try {
+      await updateDoc(doc(db, "posts", selectedReport.postId), {
+        status: "rejected",
+      });
+      await updateDoc(doc(db, "reports", selectedReport.id), {
+        status: "reviewed",
+        reviewedAt: Timestamp.now(),
+        notified: true,
+      });
 
-    // ✅ ส่ง notification
-    await sendReviewedNotification(selectedReport, selectedPost);
+      // ✅ ส่ง notification
+      await sendReviewedNotification(selectedReport, selectedPost);
 
-    showToast('ตรวจสอบแล้ว ไม่มีการลบโพสต์', 'success');
-    closeDetail();
-  } catch {
-    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
-  }
-  setActionLoading(false);
-};
-
-// ── Action: reject post + reviewed report ──
-const handleRejectPost = async () => {
-  if (!selectedReport) return;
-  setActionLoading(true);
-  try {
-    await updateDoc(doc(db, 'posts', selectedReport.postId), {
-      status: 'rejected',
-    });
-    await updateDoc(doc(db, 'reports', selectedReport.id), {
-      status: 'reviewed',
-      reviewedAt: Timestamp.now(),
-      notified: true,
-    });
-
-    // ✅ ส่ง notification
-    await sendReviewedNotification(selectedReport, selectedPost);
-
-    showToast('ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว', 'success');
-    closeDetail();
-  } catch {
-    showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
-  }
-  setActionLoading(false);
-};
+      showToast("ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว", "success");
+      closeDetail();
+    } catch {
+      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
+    }
+    setActionLoading(false);
+  };
 
   // ── Filter ──
   const filtered = reports.filter((r) => {
@@ -267,25 +283,49 @@ const handleRejectPost = async () => {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div style={s.page}>
-     <style>{`
+      <style>{`
         .report-modal::-webkit-scrollbar { width: 6px; }
         .report-modal::-webkit-scrollbar-track { background: transparent; margin-top: 24px;margin-bottom: 24px;    }
         .report-modal::-webkit-scrollbar-thumb { background: #e8d5c4; border-radius: 99px; }
         .report-modal::-webkit-scrollbar-thumb:hover { background: #d4b89a; }
+
+        .pm-table::-webkit-scrollbar { width: 6px; height: 6px; }
+        .pm-table::-webkit-scrollbar-track { background: transparent; }
+        .pm-table::-webkit-scrollbar-thumb { background: #e8d5c4; border-radius: 99px; }
+        .pm-table::-webkit-scrollbar-thumb:hover { background: #d4b89a; }
       `}</style>
       {/* Toast */}
       {toast && (
-        <div style={{ ...s.toast, background: toast.type === "success" ? "#22c55e" : "#ef4444" }}>
+        <div
+          style={{
+            ...s.toast,
+            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+          }}
+        >
           {toast.type === "success" ? "✅" : "❌"} {toast.msg}
         </div>
       )}
 
       {/* Header */}
       <div style={s.header}>
-         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-          <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
-             <Flag size={24} />Reports
-             </h1>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+          }}
+        >
+          <h1
+            style={{
+              ...s.title,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Flag size={24} />
+            Reports
+          </h1>
           <p style={s.subtitle}>รายการแจ้งปัญหาจากผู้ใช้</p>
         </div>
         <div style={s.badge}>
@@ -303,8 +343,13 @@ const handleRejectPost = async () => {
           {STATUS_TABS.map((t) => (
             <button
               key={t.key}
-              style={{ ...s.tab, ...(statusFilter === t.key ? s.tabActive : {}) }}
-              onClick={() => setStatusFilter(t.key as any)}
+              style={{
+                ...s.tab,
+                ...(statusFilter === t.key ? s.tabActive : {}),
+              }}
+              onClick={() =>
+                setStatusFilter(t.key as "all" | "pending" | "reviewed")
+              }
             >
               {t.label}
             </button>
@@ -325,11 +370,24 @@ const handleRejectPost = async () => {
             ))}
           </select>
 
-          <input type="date" style={s.dateInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <input
+            type="date"
+            style={s.dateInput}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
           <span style={{ color: "#a0856a", fontSize: 13 }}>–</span>
-          <input type="date" style={s.dateInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <input
+            type="date"
+            style={s.dateInput}
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
 
-          {(statusFilter !== "all" || reasonFilter !== "all" || dateFrom || dateTo) && (
+          {(statusFilter !== "all" ||
+            reasonFilter !== "all" ||
+            dateFrom ||
+            dateTo) && (
             <button
               style={s.clearBtn}
               onClick={() => {
@@ -346,7 +404,7 @@ const handleRejectPost = async () => {
       </div>
 
       {/* Table */}
-      <div style={s.tableWrap}>
+      <div style={s.tableWrap} className="pm-table">
         {loading ? (
           <div style={s.empty}>กำลังโหลด...</div>
         ) : filtered.length === 0 ? (
@@ -355,26 +413,38 @@ const handleRejectPost = async () => {
           <table style={s.table}>
             <thead>
               <tr>
-                {[ "POST ID", "รายงานโดย", "เหตุผล", "วันที่แจ้ง", "สถานะ", "ดูรายละเอียด"].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
+                {[
+                  "POST ID",
+                  "รายงานโดย",
+                  "เหตุผล",
+                  "วันที่แจ้ง",
+                  "สถานะ",
+                  "ดูรายละเอียด",
+                ].map((h) => (
+                  <th key={h} style={s.th}>
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => (
+              {filtered.map((r) => (
                 <tr key={r.id} style={s.tr}>
-                 
                   {/* เจ้าของโพสต์ — แสดง postId ย่อๆ ไว้ก่อน load ตอนเปิด modal */}
-                  <td style={{ ...s.td, ...s.mono }}>{r.postId.slice(0, 10)}…</td>
+                  <td style={{ ...s.td, ...s.mono }}>
+                    {r.postId.slice(0, 10)}…
+                  </td>
 
-                 
                   <td style={s.td}>
-                    {r.reporterUsername ? `@${r.reporterUsername}` : r.reportedBy.slice(0, 10) + "…"}
-                    </td>
+                    {r.reporterUsername
+                      ? `@${r.reporterUsername}`
+                      : r.reportedBy.slice(0, 10) + "…"}
+                  </td>
 
                   <td style={s.td}>
                     <span style={s.reasonTag}>
-                      {REASONS.find((x) => x.label === r.reason)?.icon ?? ""} {r.reason}
+                      {REASONS.find((x) => x.label === r.reason)?.icon ?? ""}{" "}
+                      {r.reason}
                     </span>
                   </td>
                   <td style={s.td}>{toDateStr(r.createdAt)}</td>
@@ -382,7 +452,8 @@ const handleRejectPost = async () => {
                     <span
                       style={{
                         ...s.statusBadge,
-                        background: r.status === "pending" ? "#fff3e0" : "#e8f5e9",
+                        background:
+                          r.status === "pending" ? "#fff3e0" : "#e8f5e9",
                         color: r.status === "pending" ? "#e65100" : "#2e7d32",
                         border: `1px solid ${r.status === "pending" ? "#ffcc80" : "#a5d6a7"}`,
                       }}
@@ -405,264 +476,360 @@ const handleRejectPost = async () => {
       {/* ── Modal ── */}
       {selectedReport && (
         <div style={s.overlay} onClick={closeDetail}>
-          <div style={s.modal} className="report-modal" onClick={(e) => e.stopPropagation()}>
-             <div className="report-modal" style={{ overflowY: "auto", padding: "28px 30px", flex: 1 , scrollbarWidth: "thin", scrollbarColor: "#e8d5c4 transparent" }}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>🔍 รายละเอียด Report</h2>
-              <button style={s.closeBtn} onClick={closeDetail}>✕</button>
-            </div>
-
-            {/* Report Info */}
-            <div style={s.section}>
-              <p style={s.sectionTitle}>ข้อมูลการแจ้ง</p>
-              <div style={s.infoGrid}>
-                <InfoRow label="Report ID" value={selectedReport.id} mono />
-                <InfoRow label="Post ID" value={selectedReport.postId} mono />
-                <InfoRow
-                  label="รายงานโดย"
-                  value={
-                    reporterInfo?.username
-                      ? `@${reporterInfo.username}`
-                      : reporterInfo?.email
-                      ? reporterInfo.email
-                      : selectedReport.reportedBy.slice(0, 16) + "…"
-                  }
-                />
-                <InfoRow
-                  label="เหตุผล"
-                  value={`${REASONS.find((x) => x.label === selectedReport.reason)?.icon ?? ""} ${selectedReport.reason}`}
-                />
-                <InfoRow label="วันที่แจ้ง" value={toDateStr(selectedReport.createdAt)} />
-                <InfoRow
-                  label="สถานะ"
-                  value={selectedReport.status === "pending" ? "รอตรวจสอบ" : "ตรวจแล้ว"}
-                />
-                {selectedReport.reviewedAt && (
-                  <InfoRow label="ตรวจเมื่อ" value={toDateStr(selectedReport.reviewedAt)} />
-                )}
+          <div
+            style={s.modal}
+            className="report-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="report-modal"
+              style={{
+                overflowY: "auto",
+                padding: "28px 30px",
+                flex: 1,
+                scrollbarWidth: "thin",
+                scrollbarColor: "#e8d5c4 transparent",
+              }}
+            >
+              <div style={s.modalHeader}>
+                <h2 style={s.modalTitle}>รายละเอียด Report</h2>
+                <button style={s.closeBtn} onClick={closeDetail}>
+                  ✕
+                </button>
               </div>
-            </div>
 
-            {/* Post Info */}
-            <div style={s.section}>
-              <p style={s.sectionTitle}>ข้อมูลโพสต์ที่ถูกแจ้ง</p>
-              {postLoading ? (
-                <p style={{ color: "#a0856a", fontSize: 13 }}>กำลังโหลดโพสต์...</p>
-              ) : selectedPost ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Report Info */}
+              <div style={s.section}>
+                <p style={s.sectionTitle}>ข้อมูลการแจ้ง</p>
+                <div style={s.infoGrid}>
+                  <InfoRow label="Report ID" value={selectedReport.id} mono />
+                  <InfoRow label="Post ID" value={selectedReport.postId} mono />
+                  <InfoRow
+                    label="รายงานโดย"
+                    value={
+                      reporterInfo?.username
+                        ? `@${reporterInfo.username}`
+                        : reporterInfo?.email
+                          ? reporterInfo.email
+                          : selectedReport.reportedBy.slice(0, 16) + "…"
+                    }
+                  />
+                  <InfoRow
+                    label="เหตุผล"
+                    value={`${REASONS.find((x) => x.label === selectedReport.reason)?.icon ?? ""} ${selectedReport.reason}`}
+                  />
+                  <InfoRow
+                    label="วันที่แจ้ง"
+                    value={toDateStr(selectedReport.createdAt)}
+                  />
+                  <InfoRow
+                    label="สถานะ"
+                    value={
+                      selectedReport.status === "pending"
+                        ? "รอตรวจสอบ"
+                        : "ตรวจแล้ว"
+                    }
+                  />
+                  {selectedReport.reviewedAt && (
+                    <InfoRow
+                      label="ตรวจเมื่อ"
+                      value={toDateStr(selectedReport.reviewedAt)}
+                    />
+                  )}
+                </div>
+              </div>
 
-                  {/* Type badge + status */}
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span
-                      style={{
-                        ...s.typeBadge,
-                        background: selectedPost.type === "found" ? "#e8f5e9" : "#fff3e0",
-                        color: selectedPost.type === "found" ? "#2e7d32" : "#e65100",
-                      }}
+              {/* Post Info */}
+              <div style={s.section}>
+                <p style={s.sectionTitle}>ข้อมูลโพสต์ที่ถูกแจ้ง</p>
+                {postLoading ? (
+                  <p style={{ color: "#a0856a", fontSize: 13 }}>
+                    กำลังโหลดโพสต์...
+                  </p>
+                ) : selectedPost ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    {/* Type badge + status */}
+                    <div
+                      style={{ display: "flex", gap: 8, alignItems: "center" }}
                     >
-                      {selectedPost.type === "found" ? "พบของ" : "ของหาย"}
-                    </span>
-                    {selectedPost.status === "rejected" && (
-                      <span style={{ ...s.typeBadge, background: "#ffebee", color: "#c62828" }}>
-                        🗑️ ถูกลบแล้ว
-                      </span>
-                    )}
-                  </div>
-                    
-                  {/* ── รูปภาพโพสต์ ── */}
-                  {selectedPost.images && selectedPost.images.length > 0 && (
-                    <div>
-                      <div
+                      <span
                         style={{
-                          display: "flex",
-                          gap: 8,
-                          flexWrap: "nowrap",
-                          justifyContent: "flex-start",
-                          alignItems: "flex-start",
+                          ...s.typeBadge,
+                          background:
+                            selectedPost.type === "found"
+                              ? "#e8f5e9"
+                              : "#fff3e0",
+                          color:
+                            selectedPost.type === "found"
+                              ? "#2e7d32"
+                              : "#e65100",
                         }}
                       >
-                        {selectedPost.images.slice(0, 3).map((url, i) => (
-                          <img
-                            key={i}
-                            src={url}
-                            onClick={() => setPreviewImage(url)} 
-                            alt={`img-${i}`}
-                            style={{
-                              width: 100,
-                              height: 100,
-                              borderRadius: 10,
-                              objectFit: "cover",
-                              border: "1px solid #f0e6dc",
-                              flexShrink: 0,
-                              cursor: "pointer",
-                            }}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ))}
-                      </div>
+                        {selectedPost.type === "found" ? "พบของ" : "ของหาย"}
+                      </span>
+                      {selectedPost.status === "rejected" && (
+                        <span
+                          style={{
+                            ...s.typeBadge,
+                            background: "#ffebee",
+                            color: "#c62828",
+                          }}
+                        >
+                          🗑️ ถูกลบแล้ว
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {previewImage && (
-                    <div
+
+                    {/* ── รูปภาพโพสต์ ── */}
+                    {selectedPost.images && selectedPost.images.length > 0 && (
+                      <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "nowrap",
+                            justifyContent: "flex-start",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          {selectedPost.images.slice(0, 3).map((url, i) => (
+                            <img
+                              key={i}
+                              src={url}
+                              onClick={() => setPreviewImage(url)}
+                              alt={`img-${i}`}
+                              style={{
+                                width: 100,
+                                height: 100,
+                                borderRadius: 10,
+                                objectFit: "cover",
+                                border: "1px solid #f0e6dc",
+                                flexShrink: 0,
+                                cursor: "pointer",
+                              }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {previewImage && (
+                      <div
                         onClick={() => setPreviewImage(null)}
                         style={{
-                        position: "fixed",
-                        inset: 0,
-                        background: "rgba(0,0,0,0.8)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 2000,
+                          position: "fixed",
+                          inset: 0,
+                          background: "rgba(0,0,0,0.8)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 2000,
                         }}
-                    >
+                      >
                         <img
-                        src={previewImage}
-                        style={{
+                          src={previewImage}
+                          style={{
                             maxWidth: "90%",
                             maxHeight: "90%",
                             borderRadius: 16,
                             objectFit: "contain",
-                        }}
+                          }}
                         />
-                    </div>
+                      </div>
                     )}
-                  {/* Info rows */}
-                  <div>
-                    {postOwnerUsername && (
-                      <InfoRow label="เจ้าของโพสต์" value={`@${postOwnerUsername}`} />
-                    )}
-                    <InfoRow label="หมวดหมู่" value={selectedPost.category ?? "-"} />
-                    <InfoRow label="รายละเอียด" value={selectedPost.detail ?? "-"} />
-                    <InfoRow label="วันที่" value={selectedPost.date ?? toDateStr(selectedPost.createdAt)} />
-                    <InfoRow label="สถานที่" value={selectedPost.locationName ?? selectedPost.location ?? "-"} />
-                    {selectedPost.locationDetail && (
-                      <InfoRow label="รายละเอียดสถานที่" value={selectedPost.locationDetail} />
-                    )}
-                    {selectedPost.latitude && selectedPost.longitude && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6,textAlign: "left",      }}>
-                            {/* label */}
-                            <span
+                    {/* Info rows */}
+                    <div>
+                      {postOwnerUsername && (
+                        <InfoRow
+                          label="เจ้าของโพสต์"
+                          value={`@${postOwnerUsername}`}
+                        />
+                      )}
+                      <InfoRow
+                        label="หมวดหมู่"
+                        value={selectedPost.category ?? "-"}
+                      />
+                      <InfoRow
+                        label="รายละเอียด"
+                        value={selectedPost.detail ?? "-"}
+                      />
+                      <InfoRow
+                        label="วันที่"
+                        value={
+                          selectedPost.date ?? toDateStr(selectedPost.createdAt)
+                        }
+                      />
+                      <InfoRow
+                        label="สถานที่"
+                        value={
+                          selectedPost.locationName ??
+                          selectedPost.location ??
+                          "-"
+                        }
+                      />
+                      {selectedPost.locationDetail && (
+                        <InfoRow
+                          label="รายละเอียดสถานที่"
+                          value={selectedPost.locationDetail}
+                        />
+                      )}
+                      {selectedPost.latitude && selectedPost.longitude && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            marginBottom: 6,
+                            textAlign: "left",
+                          }}
+                        >
+                          {/* label */}
+                          <span
                             style={{
-                                fontSize: 12,
-                                color: "#a0856a",
-                                fontWeight: 700,
-                                minWidth: 110,
+                              fontSize: 12,
+                              color: "#a0856a",
+                              fontWeight: 700,
+                              minWidth: 110,
                             }}
-                            >
+                          >
                             พิกัดสถานที่
-                            </span>
+                          </span>
 
-                            {/* value + link */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {/* value + link */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                            }}
+                          >
                             <a
-                                 href={`https://www.google.com/maps?q=${encodeURIComponent(selectedPost.location?? "-")}&ll=${selectedPost.latitude},${selectedPost.longitude}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                display: "inline-flex",          
-                                alignItems: "center",         
-                                gap: 4,                         
-                                fontSize: 11,                    
+                              href={`https://www.google.com/maps?q=${encodeURIComponent(selectedPost.location ?? "-")}&ll=${selectedPost.latitude},${selectedPost.longitude}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 11,
                                 color: "#F97316",
                                 fontWeight: 700,
                                 textDecoration: "none",
                                 background: "#fff7f0",
                                 border: "1px solid #f0e6dc",
                                 borderRadius: 8,
-                                padding: "3px 8px",              
-                                lineHeight: 1,                  
-                            }}
+                                padding: "3px 8px",
+                                lineHeight: 1,
+                              }}
                             >
-                                <Map size={16}  style={{ marginRight: 4 }} />
-                                เปิดแผนที่ใน Google Maps
+                              <Map size={16} style={{ marginRight: 4 }} />
+                              เปิดแผนที่ใน Google Maps
                             </a>
-                            </div>
-
+                          </div>
                         </div>
-                        )}
-                      <InfoRow  label="สถานที่รับคืน" value={selectedPost.receiveLocation ?? "-"} />
+                      )}
+                      <InfoRow
+                        label="สถานที่รับคืน"
+                        value={selectedPost.receiveLocation ?? "-"}
+                      />
                       {selectedPost.receiveLocationImage && (
                         <div
-                            style={{
+                          style={{
                             display: "flex",
                             gap: 8,
                             marginBottom: 6,
                             alignItems: "flex-start",
-                            }}
+                          }}
                         >
-                            {/* label */}
-                            <span
+                          {/* label */}
+                          <span
                             style={{
-                                fontSize: 12,
-                                color: "#a0856a",
-                                fontWeight: 700,
-                                minWidth: 110,
-                                textAlign: "left",
+                              fontSize: 12,
+                              color: "#a0856a",
+                              fontWeight: 700,
+                              minWidth: 110,
+                              textAlign: "left",
                             }}
-                            >
+                          >
                             รูปจุดรับคืน
-                            </span>
+                          </span>
 
-                            {/* image */}
-                            <img
+                          {/* image */}
+                          <img
                             src={selectedPost.receiveLocationImage}
-                            onClick={() => setPreviewImage(selectedPost.receiveLocationImage!)}
+                            onClick={() =>
+                              setPreviewImage(
+                                selectedPost.receiveLocationImage!,
+                              )
+                            }
                             alt="receive location"
                             style={{
-                                width: 80,
-                                cursor: "pointer",
-                                height: 80,
-                                borderRadius: 12,
-                                objectFit: "cover",
-                                border: "1px solid #f0e6dc",
+                              width: 80,
+                              cursor: "pointer",
+                              height: 80,
+                              borderRadius: 12,
+                              objectFit: "cover",
+                              border: "1px solid #f0e6dc",
                             }}
                             onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
                             }}
-                            />
+                          />
                         </div>
-                        )}
+                      )}
+                    </div>
                   </div>
+                ) : (
+                  <p style={{ color: "#ef4444", fontSize: 13 }}>
+                    ไม่พบข้อมูลโพสต์ (อาจถูกลบแล้ว)
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              {selectedReport.status === "pending" && (
+                <div style={s.actionRow}>
+                  <button
+                    style={{ ...s.actionBtn, ...s.btnReviewed }}
+                    onClick={handleReviewed}
+                    disabled={actionLoading}
+                  >
+                    ตรวจสอบแล้ว (ไม่ลบโพสต์)
+                  </button>
+                  <button
+                    style={{
+                      ...s.actionBtn,
+                      ...s.btnReject,
+                      opacity: selectedPost?.status === "rejected" ? 0.5 : 1,
+                    }}
+                    onClick={handleRejectPost}
+                    disabled={
+                      actionLoading || selectedPost?.status === "rejected"
+                    }
+                  >
+                    ลบโพสต์
+                  </button>
                 </div>
-              ) : (
-                <p style={{ color: "#ef4444", fontSize: 13 }}>ไม่พบข้อมูลโพสต์ (อาจถูกลบแล้ว)</p>
+              )}
+
+              {selectedReport.status === "reviewed" && (
+                <div style={s.reviewedNote}>
+                  ✅ Report นี้ได้รับการตรวจสอบแล้ว
+                  {selectedReport.reviewedAt &&
+                    ` เมื่อ ${toDateStr(selectedReport.reviewedAt)}`}
+                </div>
               )}
             </div>
-
-            {/* Actions */}
-            {selectedReport.status === "pending" && (
-              <div style={s.actionRow}>
-                <button
-                  style={{ ...s.actionBtn, ...s.btnReviewed }}
-                  onClick={handleReviewed}
-                  disabled={actionLoading}
-                >
-                  ตรวจสอบแล้ว (ไม่ลบโพสต์)
-                </button>
-                <button
-                  style={{
-                    ...s.actionBtn,
-                    ...s.btnReject,
-                    opacity: selectedPost?.status === "rejected" ? 0.5 : 1,
-                  }}
-                  onClick={handleRejectPost}
-                  disabled={actionLoading || selectedPost?.status === "rejected"}
-                >
-                  ลบโพสต์
-                </button>
-              </div>
-            )}
-
-            {selectedReport.status === "reviewed" && (
-              <div style={s.reviewedNote}>
-                ✅ Report นี้ได้รับการตรวจสอบแล้ว
-                {selectedReport.reviewedAt && ` เมื่อ ${toDateStr(selectedReport.reviewedAt)}`}
-              </div>
-            )}
-
-          </div>
           </div>
         </div>
       )}
@@ -671,7 +838,15 @@ const handleRejectPost = async () => {
 }
 
 // ── InfoRow ────────────────────────────────────────────────────────────────
-function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div
       style={{
@@ -679,8 +854,8 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
         gap: 8,
         marginBottom: 6,
         alignItems: "flex-start",
-        justifyContent: "flex-start", 
-        textAlign: "left",           
+        justifyContent: "flex-start",
+        textAlign: "left",
       }}
     >
       <span
@@ -689,7 +864,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
           color: "#a0856a",
           fontWeight: 700,
           minWidth: 110,
-          textAlign: "left",     
+          textAlign: "left",
         }}
       >
         {label}
@@ -701,7 +876,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
           color: "#5A4633",
           fontFamily: mono ? "monospace" : "inherit",
           wordBreak: "break-all",
-          textAlign: "left",         
+          textAlign: "left",
         }}
       >
         {value}
@@ -721,7 +896,11 @@ const s: Record<string, React.CSSProperties> = {
     gap: 20,
     fontFamily: "'Sarabun', sans-serif",
   },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   title: {
     fontSize: 28,
     fontWeight: 800,
@@ -765,7 +944,11 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Sarabun', sans-serif",
     transition: "all 0.18s",
   },
-  tabActive: { background: "#F97316", color: "#fff", border: "1px solid #F97316" },
+  tabActive: {
+    background: "#F97316",
+    color: "#fff",
+    border: "1px solid #F97316",
+  },
   filterRight: {
     display: "flex",
     alignItems: "center",
@@ -809,7 +992,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.9)",
     boxShadow: "0 2px 12px rgba(90,70,51,0.08)",
-    overflow: "hidden",
+    overflow: "auto",
     flex: 1,
   },
   table: { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
@@ -825,7 +1008,12 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #f0e6dc",
   },
   tr: { borderBottom: "1px solid #fdf0e8", transition: "background 0.15s" },
-  td: { padding: "13px 16px", color: "#5A4633", verticalAlign: "middle" as const, textAlign: "left" as const,},
+  td: {
+    padding: "13px 16px",
+    color: "#5A4633",
+    verticalAlign: "middle" as const,
+    textAlign: "left" as const,
+  },
   mono: { fontFamily: "monospace", fontSize: 12, color: "#a0856a" },
   reasonTag: {
     background: "#fff7f0",
@@ -855,7 +1043,12 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Sarabun', sans-serif",
     transition: "all 0.15s",
   },
-  empty: { padding: "60px 20px", textAlign: "center" as const, color: "#c8a882", fontSize: 14 },
+  empty: {
+    padding: "60px 20px",
+    textAlign: "center" as const,
+    color: "#c8a882",
+    fontSize: 14,
+  },
   overlay: {
     position: "fixed" as const,
     inset: 0,
@@ -868,21 +1061,38 @@ const s: Record<string, React.CSSProperties> = {
     padding: 20,
   },
   modal: {
-  background: "#FFFAF5",
-  borderRadius: 24,
-  width: "100%",
-  maxWidth: 620,
-  maxHeight: "88vh",
-  overflow: "hidden",        // ← hidden ไม่ใช่ auto
-  display: "flex",           // ← เพิ่ม
-  flexDirection: "column",   // ← เพิ่ม
-  boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
-  fontFamily: "'Sarabun', sans-serif",
-
-},
-  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 800, color: "#5A4633", margin: 0 },
-  closeBtn: { background: "none", border: "none", fontSize: 18, color: "#a0856a", cursor: "pointer", padding: "4px 8px" },
+    background: "#FFFAF5",
+    borderRadius: 24,
+    width: "100%",
+    maxWidth: 620,
+    maxHeight: "88vh",
+    overflow: "hidden", // ← hidden ไม่ใช่ auto
+    display: "flex", // ← เพิ่ม
+    flexDirection: "column", // ← เพิ่ม
+    boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
+    fontFamily: "'Sarabun', sans-serif",
+  },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#5A4633",
+    margin: 0,
+    fontFamily: "'Sarabun', sans-serif",
+  },
+  closeBtn: {
+    background: "none",
+    border: "none",
+    fontSize: 18,
+    color: "#a0856a",
+    cursor: "pointer",
+    padding: "4px 8px",
+  },
   section: {
     background: "rgba(255,255,255,0.8)",
     borderRadius: 16,
@@ -900,7 +1110,12 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 0,
   },
   infoGrid: { display: "flex", flexDirection: "column" as const, gap: 2 },
-  typeBadge: { padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 },
+  typeBadge: {
+    padding: "3px 10px",
+    borderRadius: 20,
+    fontSize: 12,
+    fontWeight: 700,
+  },
   actionRow: { display: "flex", gap: 10, marginTop: 4 },
   actionBtn: {
     flex: 1,
@@ -913,8 +1128,16 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Sarabun', sans-serif",
     transition: "opacity 0.15s",
   },
-  btnReviewed: { background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7" },
-  btnReject: { background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a" },
+  btnReviewed: {
+    background: "#e8f5e9",
+    color: "#2e7d32",
+    border: "1px solid #a5d6a7",
+  },
+  btnReject: {
+    background: "#ffebee",
+    color: "#c62828",
+    border: "1px solid #ef9a9a",
+  },
   reviewedNote: {
     background: "#e8f5e9",
     color: "#2e7d32",

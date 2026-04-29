@@ -24,10 +24,13 @@ import {
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react'; // ✅ เพิ่ม
 import 'react-native-reanimated';
+import * as Notifications from 'expo-notifications'; // ✅ เพิ่ม
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { UserProvider } from '../components/UserContext';
+import { useNotificationListener } from '../hooks/useNotifications'; // ✅ เพิ่ม
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -35,6 +38,13 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  
+  useNotificationListener(); // ✅ เพิ่ม
+  
+  useEffect(() => {
+    Notifications.requestPermissionsAsync(); // ✅ เพิ่ม
+  }, []);
+
   const [fontsLoaded] = useFonts({
     NotoSansThai_100Thin,
     NotoSansThai_200ExtraLight,
@@ -75,4 +85,3 @@ export default function RootLayout() {
     </UserProvider>
   );
 }
-

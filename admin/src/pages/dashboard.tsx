@@ -3,10 +3,10 @@ import {
   BarChart3,
   Calendar,
   ClipboardList,
+  Flag,
   LayoutDashboard,
   PackageSearch,
   PieChart as PieChartIcon,
-  ShieldAlert,
   Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -34,7 +34,7 @@ export default function DashboardPage() {
       (snap) => {
         setPosts(snap.docs.map((d) => d.data()));
       },
-      (err) => console.error("posts:", err)
+      (err) => console.error("posts:", err),
     );
 
     const unsubUsers = onSnapshot(
@@ -42,7 +42,7 @@ export default function DashboardPage() {
       (snap) => {
         setUserCount(snap.size);
       },
-      (err) => console.error("users:", err)
+      (err) => console.error("users:", err),
     );
 
     const unsubReports = onSnapshot(
@@ -50,7 +50,7 @@ export default function DashboardPage() {
       (snap) => {
         setReports(snap.docs.map((d) => d.data()));
       },
-      (err) => console.error("reports:", err)
+      (err) => console.error("reports:", err),
     );
 
     return () => {
@@ -76,11 +76,11 @@ export default function DashboardPage() {
   };
 
   const todayFound = posts.filter(
-    (p) => p.type === "found" && getDateStr(p.createdAt) === today
+    (p) => p.type === "found" && getDateStr(p.createdAt) === today,
   ).length;
 
   const todayLost = posts.filter(
-    (p) => p.type === "lost" && getDateStr(p.createdAt) === today
+    (p) => p.type === "lost" && getDateStr(p.createdAt) === today,
   ).length;
 
   const categoryMap: Record<string, number> = {};
@@ -94,17 +94,37 @@ export default function DashboardPage() {
     value: categoryMap[k],
   }));
 
-  const COLORS = ["#FBAA58", "#F97316", "#5A4633", "#f59e0b", "#ef4444", "#22c55e"];
+  const COLORS = [
+    "#FBAA58",
+    "#F97316",
+    "#5A4633",
+    "#f59e0b",
+    "#ef4444",
+    "#22c55e",
+  ];
 
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                  <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
-                      <LayoutDashboard size={24} /> Dashboard
-                  </h1>
-                  <p style={s.subtitle}>จัดการผู้ใช้งานในระบบ</p>
-                </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+          }}
+        >
+          <h1
+            style={{
+              ...s.title,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <LayoutDashboard size={24} /> Dashboard
+          </h1>
+          <p style={s.subtitle}>จัดการผู้ใช้งานในระบบ</p>
+        </div>
         <div style={s.dateBadge}>
           <Calendar size={16} />
           <span>
@@ -125,6 +145,16 @@ export default function DashboardPage() {
         />
 
         <StatCard
+          label="โพสต์วันนี้"
+          value={todayFound + todayLost}
+          icon={<PackageSearch size={20} />}
+          accent="#FBAA58"
+          iconColor="#D97706"
+          iconBg="#FFF7E8"
+          sub={`พบ ${todayFound} · หาย ${todayLost}`}
+        />
+
+        <StatCard
           label="ผู้ใช้งาน"
           value={userCount}
           icon={<Users size={20} />}
@@ -135,20 +165,9 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          label="โพสต์วันนี้"
-          value={todayFound + todayLost}
-          icon={<PackageSearch size={20} />}
-          accent="#FBAA58"
-          iconColor="#D97706"
-          iconBg="#FFF7E8"
-          sub={`พบ ${todayFound} · หาย ${todayLost}`}
-          
-        />
-
-        <StatCard
           label="รายงานรอตรวจ"
           value={pending}
-          icon={<ShieldAlert size={20} />}
+          icon={<Flag size={20} />}
           accent="#ef4444"
           iconColor="#DC2626"
           iconBg="#FEF2F2"
@@ -255,21 +274,15 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  accent,
-  iconColor,
-  iconBg,
-  sub,
-}: any) {
+function StatCard({ label, value, icon, accent, iconColor, iconBg, sub }: any) {
   return (
     <div style={s.card}>
       <div style={s.cardTop}>
         <div>
           <p style={s.cardLabel}>{label}</p>
-          <h2 style={{ ...s.cardValue, color: accent }}>{value.toLocaleString()}</h2>
+          <h2 style={{ ...s.cardValue, color: accent }}>
+            {value.toLocaleString()}
+          </h2>
           <p style={s.cardSub}>{sub}</p>
         </div>
 
@@ -368,7 +381,6 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: 12,
-    
   },
 
   cardLabel: {

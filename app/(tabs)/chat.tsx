@@ -8,7 +8,7 @@ import {
   getDocs, getFirestore, onSnapshot,
   orderBy, query,
   updateDoc,
-  where
+  where,doc, getDoc 
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -23,6 +23,7 @@ interface ChatRoom {
 }
 
 export default function ChatScreen() {
+  const [resolvedChats, setResolvedChats] = useState<ChatRoom[]>([]);
   const router = useRouter();
   const [chats, setChats] = useState<ChatRoom[]>([]);
   useEffect(() => {
@@ -92,6 +93,28 @@ export default function ChatScreen() {
 
     return () => unsub();
   }, []);
+  useEffect(() => {
+    if (chats.length === 0) { setResolvedChats([]); return; }
+    const db = getFirestore(app);
+    const resolveNames = async () => {
+      const resolved = await Promise.all(
+        chats.map(async (chat) => {
+          try {
+            const snap = await getDoc(doc(db, 'users', chat.targetUid));
+            const latestName = snap.exists()
+              ? snap.data().username || chat.targetName
+              : chat.targetName;
+            return { ...chat, targetName: latestName };
+          } catch {
+            return chat;
+          }
+        })
+      );
+      setResolvedChats(resolved);
+    };
+    resolveNames();
+  }, [chats]);
+
 const handleLongPress = (item: ChatRoom) => {
         Alert.alert(
           'ลบแชท',
@@ -148,7 +171,7 @@ const handleLongPress = (item: ChatRoom) => {
         </View>
       ) : (
         <FlatList
-          data={chats}
+          data={resolvedChats}
           keyExtractor={item => item.roomId}
           contentContainerStyle={{ paddingTop: 0 }}
           renderItem={({ item }) => (

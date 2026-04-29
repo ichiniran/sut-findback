@@ -280,6 +280,7 @@ useEffect(() => {
             <TextInput
               style={styles.input}
               placeholder="พิมพ์ข้อความ..."
+              placeholderTextColor="#999" 
               value={input}
               onChangeText={setInput}
               multiline

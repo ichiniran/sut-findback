@@ -5,7 +5,7 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
-import { Search, Users } from 'lucide-react';
+import { Search, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 
@@ -49,38 +49,54 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
-  const [bannedFilter, setBannedFilter] = useState<"all" | "active" | "banned">("all");
+  const [bannedFilter, setBannedFilter] = useState<"all" | "active" | "banned">(
+    "all",
+  );
 
   // modal
   const [selectedUser, setSelectedUser] = useState<UserDoc | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmBan, setConfirmBan] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // ── Firestore listeners ──
   useEffect(() => {
     const unsubUsers = onSnapshot(
       collection(db, "users"),
       (snap) => {
-        setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as UserDoc)));
+        setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as UserDoc));
         setLoading(false);
       },
-      (err) => { console.error("users:", err); setLoading(false); }
+      (err) => {
+        console.error("users:", err);
+        setLoading(false);
+      },
     );
 
     const unsubPosts = onSnapshot(
       collection(db, "posts"),
-      (snap) => setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as PostDoc))),
-      (err) => console.error("posts:", err)
+      (snap) =>
+        setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PostDoc)),
+      (err) => console.error("posts:", err),
     );
 
     const unsubReports = onSnapshot(
       collection(db, "reports"),
-      (snap) => setReports(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReportDoc))),
-      (err) => console.error("reports:", err)
+      (snap) =>
+        setReports(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ReportDoc),
+        ),
+      (err) => console.error("reports:", err),
     );
 
-    return () => { unsubUsers(); unsubPosts(); unsubReports(); };
+    return () => {
+      unsubUsers();
+      unsubPosts();
+      unsubReports();
+    };
   }, []);
 
   // ── คำนวณจำนวน report ที่โพสต์ของแต่ละ user ถูกแจ้ง ──
@@ -116,18 +132,21 @@ export default function UsersPage() {
         if (q) {
           const inUsername = (u.username ?? "").toLowerCase().includes(q);
           const inEmail = (u.email ?? "").toLowerCase().includes(q);
-          if (!inUsername && !inEmail) return false;
+          const inPhone = (u.phone ?? "").includes(q);
+          if (!inUsername && !inEmail && !inPhone) return false;
         }
         return true;
       })
       .sort((a, b) => {
         // sort by createdAt desc
-        const ta = typeof a.createdAt === "string"
-          ? a.createdAt
-          : (a.createdAt as Timestamp)?.toDate?.()?.toISOString() ?? "";
-        const tb = typeof b.createdAt === "string"
-          ? b.createdAt
-          : (b.createdAt as Timestamp)?.toDate?.()?.toISOString() ?? "";
+        const ta =
+          typeof a.createdAt === "string"
+            ? a.createdAt
+            : ((a.createdAt as Timestamp)?.toDate?.()?.toISOString() ?? "");
+        const tb =
+          typeof b.createdAt === "string"
+            ? b.createdAt
+            : ((b.createdAt as Timestamp)?.toDate?.()?.toISOString() ?? "");
         return tb.localeCompare(ta);
       });
   }, [users, search, bannedFilter]);
@@ -146,8 +165,10 @@ export default function UsersPage() {
     try {
       await updateDoc(doc(db, "users", selectedUser.id), { banned: newBanned });
       showToast(
-        newBanned ? `แบน ${selectedUser.username ?? selectedUser.email} แล้ว` : `ปลดแบน ${selectedUser.username ?? selectedUser.email} แล้ว`,
-        "success"
+        newBanned
+          ? `แบน ${selectedUser.username ?? selectedUser.email} แล้ว`
+          : `ปลดแบน ${selectedUser.username ?? selectedUser.email} แล้ว`,
+        "success",
       );
       setSelectedUser(null);
       setConfirmBan(false);
@@ -157,7 +178,9 @@ export default function UsersPage() {
     setActionLoading(false);
   };
 
-  const reportCount = selectedUser ? (reportCountByUser[selectedUser.id] ?? 0) : 0;
+  const reportCount = selectedUser
+    ? (reportCountByUser[selectedUser.id] ?? 0)
+    : 0;
   const userPostCount = selectedUser
     ? posts.filter((p) => p.userId === selectedUser.id).length
     : 0;
@@ -165,25 +188,44 @@ export default function UsersPage() {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div style={s.page}>
-
       {/* Toast */}
       {toast && (
-        <div style={{ ...s.toast, background: toast.type === "success" ? "#22c55e" : "#ef4444" }}>
-          {toast.type === "success" ? "✅" : "❌"} {toast.msg}
+        <div
+          style={{
+            ...s.toast,
+            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+          }}
+        >
+          {toast.msg}
         </div>
       )}
 
       {/* Header */}
       <div style={s.header}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-          <h1 style={{ ...s.title, display: "flex", alignItems: "center", gap: 10 }}>
-             <Users size={24} /> User Management
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+          }}
+        >
+          <h1
+            style={{
+              ...s.title,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Users size={24} /> User Management
           </h1>
           <p style={s.subtitle}>จัดการผู้ใช้งานในระบบ</p>
         </div>
         <div style={s.badge}>
           ทั้งหมด{" "}
-          <span style={{ color: "#F97316", fontWeight: 800 }}>{users.length}</span>{" "}
+          <span style={{ color: "#F97316", fontWeight: 800 }}>
+            {users.length}
+          </span>{" "}
           คน &nbsp;·&nbsp; แบนแล้ว{" "}
           <span style={{ color: "#ef4444", fontWeight: 800 }}>
             {users.filter((u) => u.banned).length}
@@ -198,15 +240,17 @@ export default function UsersPage() {
         <div style={s.searchWrap}>
           <span style={s.searchIcon}>
             <Search size={18} />
-            </span>
+          </span>
           <input
             style={s.searchInput}
-            placeholder="ค้นหาด้วย username หรือ email…"
+            placeholder="ค้นหาด้วย username, email หรือเบอร์โทร…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button style={s.clearX} onClick={() => setSearch("")}>✕</button>
+            <button style={s.clearX} onClick={() => setSearch("")}>
+              ✕
+            </button>
           )}
         </div>
 
@@ -234,9 +278,19 @@ export default function UsersPage() {
           <table style={s.table}>
             <thead>
               <tr>
-                {[ "Username", "Email", "วันที่สมัคร", "โพสต์", "ถูก Report", "สถานะ", "จัดการ"].map(
-                  (h) => <th key={h} style={s.th}>{h}</th>
-                )}
+                {[
+                  "Username",
+                  "Email",
+                  "วันที่สมัคร",
+                  "โพสต์",
+                  "ถูก Report",
+                  "สถานะ",
+                  "จัดการ",
+                ].map((h) => (
+                  <th key={h} style={s.th}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -245,16 +299,23 @@ export default function UsersPage() {
                 const pc = posts.filter((p) => p.userId === u.id).length;
                 return (
                   <tr key={u.id} style={s.tr}>
-                   
                     <td style={s.td}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontWeight: 600, color: "#5A4633" }}>
-                          {u.username ?? "-"}
-                        </span>
-                      </div>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: "#5A4633",
+                          display: "block",
+                        }}
+                      >
+                        {u.username ?? "-"}
+                      </span>
                     </td>
-                    <td style={{ ...s.td, color: "#a0856a", fontSize: 12 }}>{u.email ?? "-"}</td>
-                    <td style={{ ...s.td, fontSize: 12 }}>{toDateStr(u.createdAt)}</td>
+                    <td style={{ ...s.td, color: "#a0856a", fontSize: 12 }}>
+                      {u.email ?? "-"}
+                    </td>
+                    <td style={{ ...s.td, fontSize: 12 }}>
+                      {toDateStr(u.createdAt)}
+                    </td>
                     <td style={s.td}>
                       <span style={s.countBadge}>{pc}</span>
                     </td>
@@ -264,7 +325,8 @@ export default function UsersPage() {
                           ...s.countBadge,
                           background: rc > 0 ? "#ffebee" : "#f5f5f5",
                           color: rc > 0 ? "#c62828" : "#a0856a",
-                          border: rc > 0 ? "1px solid #ef9a9a" : "1px solid #e0e0e0",
+                          border:
+                            rc > 0 ? "1px solid #ef9a9a" : "1px solid #e0e0e0",
                         }}
                       >
                         {rc > 0 ? `🚩 ${rc}` : rc}
@@ -279,11 +341,17 @@ export default function UsersPage() {
                           border: `1px solid ${u.banned ? "#ef9a9a" : "#a5d6a7"}`,
                         }}
                       >
-                        {u.banned ? "ถูกแบน" : "ปกติ"}
+                        {u.banned ? "🚫 ถูกแบน" : "ปกติ"}
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button style={s.detailBtn} onClick={() => { setSelectedUser(u); setConfirmBan(false); }}>
+                      <button
+                        style={s.detailBtn}
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setConfirmBan(false);
+                        }}
+                      >
                         จัดการ
                       </button>
                     </td>
@@ -297,119 +365,197 @@ export default function UsersPage() {
 
       {/* ── Modal ── */}
       {selectedUser && (
-        <div style={s.overlay} onClick={() => { setSelectedUser(null); setConfirmBan(false); }}>
+        <div
+          style={s.overlay}
+          onClick={() => {
+            setSelectedUser(null);
+            setConfirmBan(false);
+          }}
+        >
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>👤 ข้อมูลผู้ใช้</h2>
-              <button style={s.closeBtn} onClick={() => { setSelectedUser(null); setConfirmBan(false); }}>✕</button>
-            </div>
-
-            {/* Avatar + name */}
-            <div style={s.userHero}>
-              <div style={s.avatarLg}>
-                {(selectedUser.username ?? selectedUser.email ?? "?")[0].toUpperCase()}
-              </div>
-              <div>
-                <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: "#5A4633" }}>
-                  {selectedUser.username ?? "-"}
-                </p>
-                <p style={{ margin: 0, fontSize: 13, color: "#a0856a" }}>{selectedUser.email ?? "-"}</p>
-                <span
-                  style={{
-                    ...s.statusBadge,
-                    marginTop: 6,
-                    display: "inline-block",
-                    background: selectedUser.banned ? "#ffebee" : "#e8f5e9",
-                    color: selectedUser.banned ? "#c62828" : "#2e7d32",
-                    border: `1px solid ${selectedUser.banned ? "#ef9a9a" : "#a5d6a7"}`,
+            <div
+              style={{
+                overflowY: "auto",
+                padding: "28px 30px",
+                flex: 1,
+                scrollbarWidth: "thin",
+                scrollbarColor: "#e8d5c4 transparent",
+              }}
+            >
+              <div style={s.modalHeader}>
+                <h2 style={s.modalTitle}>ข้อมูลผู้ใช้</h2>
+                <button
+                  style={s.closeBtn}
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setConfirmBan(false);
                   }}
                 >
-                  {selectedUser.banned ? "🚫 ถูกแบน" : "✅ ปกติ"}
-                </span>
+                  ✕
+                </button>
               </div>
-            </div>
 
-            {/* Info */}
-            <div style={s.section}>
-              <p style={s.sectionTitle}>ข้อมูลบัญชี</p>
-              <InfoRow label="User ID" value={selectedUser.id} mono />
-              <InfoRow label="Username" value={selectedUser.username ?? "-"} />
-              <InfoRow label="Email" value={selectedUser.email ?? "-"} />
-              <InfoRow label="เบอร์โทร" value={selectedUser.phone ?? "ยังไม่ได้เพิ่ม"} />
-              <InfoRow label="วันที่สมัคร" value={toDateStr(selectedUser.createdAt)} />
-            </div>
-
-            {/* Stats */}
-            <div style={s.statsRow}>
-              <div style={s.statBox}>
-                <p style={s.statNum}>{userPostCount}</p>
-                <p style={s.statLabel}>โพสต์ทั้งหมด</p>
-              </div>
-              <div style={{ ...s.statBox, borderColor: reportCount > 0 ? "#ef9a9a" : "#f0e6dc" }}>
-                <p style={{ ...s.statNum, color: reportCount > 0 ? "#c62828" : "#5A4633" }}>
-                  {reportCount > 0 ? `${reportCount}` : reportCount}
-                </p>
-                <p style={s.statLabel}>โพสต์ถูก Report</p>
-              </div>
-            </div>
-
-            {/* Ban action */}
-            {!confirmBan ? (
-              <button
-                style={{
-                  ...s.actionBtn,
-                  background: selectedUser.banned ? "#e8f5e9" : "#ffebee",
-                  color: selectedUser.banned ? "#2e7d32" : "#c62828",
-                  border: `1px solid ${selectedUser.banned ? "#a5d6a7" : "#ef9a9a"}`,
-                }}
-                onClick={() => setConfirmBan(true)}
-              >
-                {selectedUser.banned ? "🔓 ปลดแบน User นี้" : "🚫 แบน User นี้"}
-              </button>
-            ) : (
-              <div style={s.confirmBox}>
-                <p style={s.confirmText}>
-                  {selectedUser.banned
-                    ? `ยืนยันปลดแบน "${selectedUser.username ?? selectedUser.email}" ?`
-                    : `ยืนยันแบน "${selectedUser.username ?? selectedUser.email}" ?\nUser จะไม่สามารถใช้งานแอปได้`}
-                </p>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    style={{ ...s.confirmBtn, background: "#f5f5f5", color: "#5A4633" }}
-                    onClick={() => setConfirmBan(false)}
-                    disabled={actionLoading}
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
+              {/* Avatar + name */}
+              <div style={s.userHero}>
+                <div style={s.avatarLg}>
+                  {(selectedUser.username ??
+                    selectedUser.email ??
+                    "?")[0].toUpperCase()}
+                </div>
+                <div style={{ textAlign: "left" as const }}>
+                  <p
                     style={{
-                      ...s.confirmBtn,
-                      background: selectedUser.banned ? "#2e7d32" : "#c62828",
-                      color: "#fff",
+                      margin: 0,
+                      fontWeight: 800,
+                      fontSize: 18,
+                      color: "#5A4633",
                     }}
-                    onClick={handleToggleBan}
-                    disabled={actionLoading}
                   >
-                    {actionLoading ? "กำลังดำเนินการ…" : "ยืนยัน"}
-                  </button>
+                    {selectedUser.username ?? "-"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#a0856a" }}>
+                    {selectedUser.email ?? "-"}
+                  </p>
+                  <span
+                    style={{
+                      ...s.statusBadge,
+                      marginTop: 6,
+                      display: "inline-block",
+                      background: selectedUser.banned ? "#ffebee" : "#e8f5e9",
+                      color: selectedUser.banned ? "#c62828" : "#2e7d32",
+                      border: `1px solid ${selectedUser.banned ? "#ef9a9a" : "#a5d6a7"}`,
+                    }}
+                  >
+                    {selectedUser.banned ? "🚫 ถูกแบน" : "ปกติ"}
+                  </span>
                 </div>
               </div>
-            )}
 
+              {/* Info */}
+              <div style={s.section}>
+                <p style={s.sectionTitle}>ข้อมูลบัญชี</p>
+                <InfoRow label="User ID" value={selectedUser.id} mono />
+                <InfoRow
+                  label="Username"
+                  value={selectedUser.username ?? "-"}
+                />
+                <InfoRow label="Email" value={selectedUser.email ?? "-"} />
+                <InfoRow
+                  label="เบอร์โทร"
+                  value={selectedUser.phone ?? "ยังไม่ได้เพิ่ม"}
+                />
+                <InfoRow
+                  label="วันที่สมัคร"
+                  value={toDateStr(selectedUser.createdAt)}
+                />
+              </div>
+
+              {/* Stats */}
+              <div style={s.statsRow}>
+                <div style={s.statBox}>
+                  <p style={s.statNum}>{userPostCount}</p>
+                  <p style={s.statLabel}>โพสต์ทั้งหมด</p>
+                </div>
+                <div
+                  style={{
+                    ...s.statBox,
+                    borderColor: reportCount > 0 ? "#ef9a9a" : "#f0e6dc",
+                  }}
+                >
+                  <p
+                    style={{
+                      ...s.statNum,
+                      color: reportCount > 0 ? "#c62828" : "#5A4633",
+                    }}
+                  >
+                    {reportCount > 0 ? `${reportCount}` : reportCount}
+                  </p>
+                  <p style={s.statLabel}>โพสต์ถูก Report</p>
+                </div>
+              </div>
+
+              {/* Ban action */}
+              {!confirmBan ? (
+                <button
+                  style={{
+                    ...s.actionBtn,
+                    background: selectedUser.banned ? "#e8f5e9" : "#ffebee",
+                    color: selectedUser.banned ? "#2e7d32" : "#c62828",
+                    border: `1px solid ${selectedUser.banned ? "#a5d6a7" : "#ef9a9a"}`,
+                  }}
+                  onClick={() => setConfirmBan(true)}
+                >
+                  {selectedUser.banned ? "ปลดแบน User นี้" : "🚫แบน User นี้"}
+                </button>
+              ) : (
+                <div style={s.confirmBox}>
+                  <p style={s.confirmText}>
+                    {selectedUser.banned
+                      ? `ยืนยันปลดแบน "${selectedUser.username ?? selectedUser.email}" ?`
+                      : `ยืนยันแบน "${selectedUser.username ?? selectedUser.email}" ?\nUser จะไม่สามารถใช้งานแอปได้`}
+                  </p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      style={{
+                        ...s.confirmBtn,
+                        background: "#f5f5f5",
+                        color: "#5A4633",
+                      }}
+                      onClick={() => setConfirmBan(false)}
+                      disabled={actionLoading}
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      style={{
+                        ...s.confirmBtn,
+                        background: selectedUser.banned ? "#2e7d32" : "#c62828",
+                        color: "#fff",
+                      }}
+                      onClick={handleToggleBan}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? "กำลังดำเนินการ…" : "ยืนยัน"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
 // ── InfoRow ────────────────────────────────────────────────────────────────
-function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-      <span style={{ fontSize: 12, color: "#a0856a", fontWeight: 700, minWidth: 90, paddingTop: 1 }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        marginBottom: 6,
+        alignItems: "flex-start",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          color: "#a0856a",
+          fontWeight: 700,
+          minWidth: 90,
+          paddingTop: 1,
+        }}
+      >
         {label}
       </span>
       <span
@@ -442,7 +588,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "center",
   },
-   title: {
+  title: {
     fontSize: 28,
     fontWeight: 800,
     color: "#5A4633",
@@ -450,7 +596,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.5px",
     fontFamily: "'Inter', sans-serif",
   },
- subtitle: {
+  subtitle: {
     fontSize: 13,
     color: "#a0856a",
     marginTop: 6,
@@ -480,13 +626,13 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.9)",
     boxShadow: "0 2px 12px rgba(90,70,51,0.06)",
   },
-searchWrap: {
+  searchWrap: {
     display: "flex",
-    alignItems: "center", 
+    alignItems: "center",
     background: "#fff",
     border: "1px solid #e8d5c4",
     borderRadius: 12,
-    padding: "8px 14px", 
+    padding: "8px 14px",
     gap: 12,
     flex: 1,
     minWidth: 220,
@@ -494,13 +640,13 @@ searchWrap: {
   searchInput: {
     border: "none",
     outline: "none",
-    fontSize: 14, 
+    fontSize: 14,
     color: "#5A4633",
     background: "transparent",
     flex: 1,
     fontFamily: "'Sarabun', sans-serif",
-    padding: 0,   
-    height: "24px", 
+    padding: 0,
+    height: "24px",
     display: "flex",
     alignItems: "center",
   },
@@ -634,10 +780,12 @@ searchWrap: {
     width: "100%",
     maxWidth: 480,
     maxHeight: "88vh",
-    overflowY: "auto" as const,
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
     boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
-    padding: "28px 30px",
     fontFamily: "'Sarabun', sans-serif",
+    textAlign: "left" as const,
   },
   modalHeader: {
     display: "flex",
@@ -650,6 +798,7 @@ searchWrap: {
     fontWeight: 800,
     color: "#5A4633",
     margin: 0,
+    fontFamily: "'Sarabun', sans-serif",
   },
   closeBtn: {
     background: "none",
@@ -668,6 +817,7 @@ searchWrap: {
     background: "rgba(255,255,255,0.8)",
     borderRadius: 16,
     border: "1px solid #f0e6dc",
+    textAlign: "left" as const,
   },
   avatarLg: {
     width: 56,
@@ -697,6 +847,7 @@ searchWrap: {
     letterSpacing: "0.8px",
     marginBottom: 10,
     marginTop: 0,
+    textAlign: "center" as const,
   },
   statsRow: {
     display: "grid",

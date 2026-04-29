@@ -1,10 +1,12 @@
 import BottomSheetMenu from '@/components/BottomSheetMenu';
+import ImageGallery from '@/components/ImageGallery';
 import ReportModal from "@/components/ReportModal";
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDoc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import {
   Alert, Animated, Dimensions,
   Image,
@@ -59,6 +61,7 @@ export default function PostDetail() {
   const resolvedLocationDetail = params.locationDetail || postData?.locationDetail || '';
   const resolvedReceiveLocation = params.receiveLocation || postData?.receiveLocation || '';
   const resolvedUsername = params.username || params.user || postData?.username || '-';
+  //const resolvedUsername = postData?.username || params.username || params.user || '-';
   const resolvedUserId = params.userId || postData?.userId || '';
   const resolvedDate = params.date || (params.createdAt ? params.createdAt.split('T')[0] : '') || postData?.date || (postData?.createdAt ? postData.createdAt.split('T')[0] : '-');
   const resolvedLatitude = params.latitude || (postData?.latitude ? String(postData.latitude) : '');
@@ -120,8 +123,7 @@ export default function PostDetail() {
   const displayDate = resolvedDate;
   const displayLocation = resolvedLocationName;
 
-  const handleClaimed = async () => {
-  if (isFound) {
+const handleClaimed = async () => {
   const db = getFirestore(app);
   const user = auth.currentUser;
   if (!user) return;
@@ -129,8 +131,8 @@ export default function PostDetail() {
   const snap = await getDoc(doc(db, 'users', user.uid));
   const existingPhone = snap.exists() ? snap.data().phone ?? '' : '';
 
-  if (!existingPhone) {
-    // ยังไม่มีเบอร์ → ไปตั้งค่าก่อน
+  // ✅ เช็คเบอร์เฉพาะตอน found เท่านั้น
+  if (isFound && !existingPhone) {
     Alert.alert(
       'ยังไม่มีเบอร์โทร',
       'กรุณาเพิ่มเบอร์โทรในหน้าตั้งค่าบัญชีก่อนรับของ',
@@ -142,25 +144,28 @@ export default function PostDetail() {
     return;
   }
 
-  // มีเบอร์แล้ว → claimed เลย
-  Alert.alert(
-    'ยืนยันการรับของ',
-    `ยืนยันว่าคุณ (${existingPhone}) มารับของแล้วใช่ไหม?`,
-    [
-      { text: 'ยกเลิก', style: 'cancel' },
-      {
-        text: 'ยืนยัน',
-        onPress: async () => {
-          try {
-            const claimerName = snap.data()?.username ?? 'ไม่ทราบชื่อ';
-            await updateDoc(doc(db, 'posts', postId!), {
-              status: 'claimed',
-              claimedBy: user.uid,
-              claimedByName: claimerName,
-              claimedByPhone: existingPhone,
-            });
+  const confirmMsg = isFound
+    ? `ยืนยันว่าคุณ (${existingPhone}) มารับของแล้วใช่ไหม?`
+    : `ยืนยันว่าคุณได้รับของคืนแล้วใช่ไหม?`;
+
+  Alert.alert('ยืนยัน', confirmMsg, [
+    { text: 'ยกเลิก', style: 'cancel' },
+    {
+      text: 'ยืนยัน',
+      onPress: async () => {
+        try {
+          const claimerName = snap.data()?.username ?? 'ไม่ทราบชื่อ';
+          await updateDoc(doc(db, 'posts', postId!), {
+            status: 'claimed',
+            claimedBy: user.uid,
+            claimedByName: claimerName,
+            // ✅ เก็บเบอร์เฉพาะตอน found
+            ...(isFound && { claimedByPhone: existingPhone }),
+          });
+
+          if (isFound && resolvedUserId) {
             await addDoc(
-              collection(db, 'users', resolvedUserId!, 'notifications'),
+              collection(db, 'users', resolvedUserId, 'notifications'),
               {
                 title: 'มีคนมารับของแล้ว',
                 desc: `${claimerName} มารับของของคุณแล้ว`,
@@ -171,14 +176,13 @@ export default function PostDetail() {
                 isRead: false, createdAt: new Date(),
               }
             );
-          } catch (e) {
-            Alert.alert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่');
           }
-        },
+        } catch (e) {
+          Alert.alert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่');
+        }
       },
-    ]
-  );
-}
+    },
+  ]);
 };
 
   const handleChat = () => {
@@ -309,36 +313,7 @@ export default function PostDetail() {
 
         {/* Gallery */}
         <View style={styles.imageBox}>
-          {itemImages.length > 0 ? (
-            <>
-              <ScrollView
-                horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-                onScroll={e => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / screenWidth))}
-                scrollEventThrottle={16}
-              >
-                {itemImages.map((uri, idx) => (
-                  <Image key={idx} source={{ uri }} style={{ width: screenWidth, height: 300 }} resizeMode="cover" />
-                ))}
-              </ScrollView>
-              {itemImages.length > 1 && (
-                <>
-                  <View style={styles.dots}>
-                    {itemImages.map((_, i) => (
-                      <View key={i} style={[styles.dot, i === imgIdx && styles.dotActive]} />
-                    ))}
-                  </View>
-                  <View style={styles.imageCounter}>
-                    <Text style={styles.imageCounterText}>{imgIdx + 1}/{itemImages.length}</Text>
-                  </View>
-                </>
-              )}
-            </>
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={48} color="rgba(63, 63, 63, 0.4)" />
-              <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
-            </View>
-          )}
+          <ImageGallery images={itemImages} />
           <StatusChip status={status} isFound={isFound} />
         </View>
 
@@ -346,19 +321,17 @@ export default function PostDetail() {
         <View style={styles.card}>
           <View style={styles.titleRow}>
             <Text style={styles.postTitle} numberOfLines={2} ellipsizeMode="tail">{resolvedTitle}</Text>
-            <BookmarkButton
-              postId={postId}
-              type={resolvedType}
-              postData={{
-                postId, type: resolvedType, title: resolvedTitle, detail: resolvedDetail,
-                location: resolvedLocation, locationName: resolvedLocationName,
-                locationDetail: resolvedLocationDetail, receiveLocation: resolvedReceiveLocation,
-                username: resolvedUsername, userId: resolvedUserId, date: resolvedDate,
-                images: JSON.stringify(itemImages), receiveLocationImage: resolvedLocationImage,
-                category: resolvedCategory, latitude: resolvedLatitude, longitude: resolvedLongitude,
-                currentStatus: status,
-              }}
-            />
+            <TouchableOpacity 
+              onPress={handleBookmark} 
+              disabled={isSaving} 
+              style={{ padding: 6, marginLeft: 8 }}
+            >
+              <Ionicons
+                name={saved ? 'bookmark' : 'bookmark-outline'}
+                size={22}
+                color="#F97316"
+              />
+            </TouchableOpacity>
           </View>
           
           <View style={styles.divider} />
@@ -444,25 +417,69 @@ export default function PostDetail() {
   {isFound ? (
   <>
     {/* ✅ แสดงให้ทุกคนเห็นเมื่อ claimed แล้ว (ทั้ง owner และ non-owner) */}
-    {status === 'claimed' && postData?.claimedByName && (
-      <View style={styles.claimedBox}>
-        <View style={styles.claimedRow}>
-          <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
-          <Text style={styles.claimedText}>
-            รับโดย <Text style={styles.claimedName}>{postData.claimedByName}</Text>
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.contactAdminBtn}
-          onPress={() => Linking.openURL('https://line.me/R/ti/p/@xxxxxxx')}
-        >
-          <Ionicons name="logo-whatsapp" size={16} color="#06C755" />
-          <Text style={styles.contactAdminText}>ติดต่อแอดมิน (LINE)</Text>
-        </TouchableOpacity>
-      </View>
+   {status === 'claimed' && postData?.claimedByName && (
+  <View style={styles.claimedBox}>
+    <View style={styles.claimedRow}>
+      <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
+      <Text style={styles.claimedText}>
+        {currentUid === postData.claimedBy
+          ? 'รับโดยฉัน'
+          : <>รับโดย <ClaimedByName uid={postData.claimedBy} /></>
+        }
+      </Text>
+    </View>
+
+    {/* ปุ่มติดต่อผู้รับ — แสดงเฉพาะคนที่ไม่ใช่ผู้รับ */}
+    {currentUid !== postData.claimedBy && postData?.claimedBy && (
+      <TouchableOpacity
+        style={styles.contactAdminBtn}
+        onPress={() => router.push({
+          pathname: '../chat/ChatDetail',
+          params: {
+            targetUid: postData.claimedBy,
+            targetName: postData.claimedByName,
+            postTitle: resolvedTitle,
+            postId: postId || '',
+            postType: resolvedType,
+            postImageUri: itemImages[0] || '',
+            postLocationName: displayLocation,
+            postDate: displayDate,
+          },
+        })}
+      >
+        <Ionicons name="chatbubble-ellipses-outline" size={16} color={COLORS.green} />
+        <Text style={styles.contactAdminText}>ติดต่อผู้รับ</Text>
+      </TouchableOpacity>
     )}
 
-    {/* ✅ ปุ่มพวกนี้แสดงเฉพาะตอน waiting และ ไม่ใช่เจ้าของ */}
+    {/* ปุ่ม LINE admin — แสดงทุกคน */}
+    <TouchableOpacity
+        style={styles.contactAdminBtn}
+        onPress={async () => {
+          const message = 
+            `${resolvedType === 'found' ? '🔍 พบของหาย' : '📢 ประกาศของหาย'}: ${resolvedTitle}\n` +
+            `📍 สถานที่: ${displayLocation}\n` +
+            `📅 วันที่: ${displayDate}\n` +
+            `🔗 รหัสโพสต์: ${postId}`;
+
+          await Clipboard.setStringAsync(message);
+          Alert.alert(
+            'ข้อมูลสำหรับแจ้งแอดมินถูกคัดลอกเรียบร้อยแล้ว✅',
+            'ข้อมูลโพสต์ถูกคัดลอกแล้ว กดเปิด LINE แล้ววางข้อความเพื่อทำการแจ้งแอดมินได้เลยค่ะ',
+            [
+              { text: 'ยกเลิก', style: 'cancel' },
+              { text: 'เปิด LINE', onPress: () => Linking.openURL('https://line.me/ti/p/@750dzczn') },
+            ]
+          );
+        }}
+      >
+        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#06C755" />
+        <Text style={styles.contactAdminText}>ติดต่อแอดมิน (LINE)</Text>
+      </TouchableOpacity>
+  </View>
+)}
+
+    {/* ปุ่มพวกนี้แสดงเฉพาะตอน waiting และ ไม่ใช่เจ้าของ */}
     {!isOwner && status === 'waiting' && (
       <>
         <TouchableOpacity style={styles.btnPrimary} onPress={handleChat}>
@@ -493,7 +510,7 @@ export default function PostDetail() {
           </TouchableOpacity>
         ) : (
           <View style={styles.btnClaimed}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
+            <Ionicons name="checkmark-circle" size={18} color={'#717171'} />
             <Text style={styles.btnClaimedText}>ได้รับของแล้ว</Text>
           </View>
         )
@@ -505,7 +522,8 @@ export default function PostDetail() {
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         isOwner={isOwner}
-        onSave={() => console.log("save")}
+        onSave={handleBookmark}
+        isSaved={saved}
         onEdit={() => {
           setMenuVisible(false);
           router.replace({
@@ -559,7 +577,7 @@ export default function PostDetail() {
         onClose={() => setReportVisible(false)}
         selectedReason={selectedReason}
         setSelectedReason={setSelectedReason}
-        postId={postId}   // 🔥 ตัวสำคัญ!!!
+        postId={postId}  
       />
 
       {/* ✅ Modal ดูรูปใหญ่ — ปุ่มปิดอยู่ใน layout ปกติ ไม่ใช้ position absolute */}
@@ -629,6 +647,17 @@ return (
 );
 }
 
+//ดึงชื่อจาก uid
+function ClaimedByName({ uid }: { uid: string }) {
+  const [name, setName] = useState('...');
+  useEffect(() => {
+    const db = getFirestore(app);
+    getDoc(doc(db, 'users', uid)).then(snap => {
+      if (snap.exists()) setName(snap.data().username ?? 'ไม่ทราบชื่อ');
+    });
+  }, [uid]);
+  return <Text style={styles.claimedName}>{name}</Text>;
+}
 // ── InfoRow ──
 function InfoRow({ icon, label, value, sub }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -694,16 +723,16 @@ const styles = StyleSheet.create({
   navUsername: { fontSize: 14, fontWeight: '600', color: COLORS.textMain },
   navTime: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
   scroll: { flex: 1, backgroundColor: COLORS.bg },
-  imageBox: { width: '100%', height: 300, backgroundColor: '#ffffff', position: 'relative' },
-  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' },
-  noImageText: { color: 'rgba(33, 26, 26, 0.52)', marginTop: 8, fontSize: 13 },
+  imageBox: { width: '100%', height: 350, backgroundColor: '#ffffff', position: 'relative' },
+  //imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' },
+  //noImageText: { color: 'rgba(33, 26, 26, 0.52)', marginTop: 8, fontSize: 13 },
   badge: {
     position: 'absolute', top: 14, right: 14, 
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
     
   },
   badgeText: { fontSize: 12, fontWeight: '600' ,color: '#fff'},
-  dots: {
+  /*dots: {
     position: 'absolute', bottom: 12,
     left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6,
   },
@@ -713,7 +742,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 12, right: 14,
     backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
   },
-  imageCounterText: { color: '#fff', fontSize: 11 },
+  imageCounterText: { color: '#fff', fontSize: 11 },*/
   card: { backgroundColor: COLORS.card, marginTop: 8, paddingTop: 20, paddingBottom: 8 },
   postTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: COLORS.textMain, marginRight: 8, marginBottom: 2 },
   statusChip: {
@@ -756,11 +785,11 @@ const styles = StyleSheet.create({
   },
   btnGreenText: { color: COLORS.green, fontSize: 15, fontWeight: '600' },
   btnClaimed: {
-    paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.greenLight,
-    borderWidth: 1.5, borderColor: COLORS.greenBorder,
+    paddingVertical: 14, borderRadius: 14, backgroundColor: '#f5f3f3',
+    borderWidth: 1.5, borderColor: '#e4e4e4',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  btnClaimedText: { color: COLORS.green, fontSize: 15, fontWeight: '600' },
+  btnClaimedText: { color: '#717171', fontSize: 15, fontWeight: '600' },
   stickyBottom: {
     paddingHorizontal: 20, paddingVertical: 12, paddingBottom: 8,
     backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, gap: 10,
@@ -814,7 +843,7 @@ otpBtn: {
 },
 otpBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 claimedBox: {
-  marginHorizontal: 20,
+  marginHorizontal: 0,
   marginTop: 16,
   padding: 14,
   borderRadius: 14,

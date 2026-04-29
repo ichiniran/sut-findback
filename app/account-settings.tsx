@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
 import { getAuth, PhoneAuthProvider } from 'firebase/auth';
 import { doc, getDoc, getFirestore, updateDoc } from 'firebase/firestore';
+
+
 import { useEffect, useRef, useState } from 'react';
 
 import {

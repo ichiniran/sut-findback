@@ -1,17 +1,29 @@
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { EmailAuthProvider, getAuth, reauthenticateWithCredential, updatePassword } from "firebase/auth";
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import {
+  EmailAuthProvider,
+  getAuth,
+  reauthenticateWithCredential,
+  updatePassword,
+} from "firebase/auth";
+import { useState } from "react";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -36,7 +48,10 @@ export default function ChangePasswordScreen() {
       }
 
       // ✅ Re-authenticate ก่อน
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        currentPassword,
+      );
       await reauthenticateWithCredential(user, credential);
 
       // แล้วค่อยเปลี่ยนรหัสผ่าน
@@ -47,10 +62,12 @@ export default function ChangePasswordScreen() {
       setNewPassword("");
       setConfirmPassword("");
       router.back();
-
     } catch (error: any) {
       console.log(error);
-      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
         Alert.alert("รหัสผ่านปัจจุบันไม่ถูกต้อง");
       } else {
         Alert.alert("เกิดข้อผิดพลาด", error.message);
@@ -59,9 +76,8 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <LinearGradient colors={['#FFFAF5', '#FFFAF5']} style={{ flex: 1 }}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-
+    <LinearGradient colors={["#FFFAF5", "#FFFAF5"]} style={{ flex: 1 }}>
+      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
         {/* HEADER */}
         <BlurView intensity={60} tint="light" style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -74,7 +90,6 @@ export default function ChangePasswordScreen() {
         {/* CONTENT */}
         <View style={styles.content}>
           <View style={styles.menuCard}>
-
             {/* รหัสผ่านปัจจุบัน */}
             <View style={styles.inputRow}>
               <Text style={styles.inputLabel}>รหัสผ่านปัจจุบัน</Text>
@@ -113,17 +128,18 @@ export default function ChangePasswordScreen() {
                 onChangeText={setConfirmPassword}
               />
             </View>
-
           </View>
 
           {/* BUTTON */}
-          <Pressable style={{ borderRadius: 16 }} onPress={handleChangePassword}>
-            <View style={styles.submitButton}     >
+          <Pressable
+            style={{ borderRadius: 16 }}
+            onPress={handleChangePassword}
+          >
+            <View style={styles.submitButton}>
               <Text style={styles.submitText}>บันทึก</Text>
             </View>
           </Pressable>
         </View>
-
       </SafeAreaView>
     </LinearGradient>
   );
@@ -136,22 +152,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 10,
     height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     //backgroundColor: 'rgba(255,255,255,0.4)',
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2d1b10',
+    fontWeight: "600",
+    color: "#2d1b10",
   },
   content: {
     flex: 1,
@@ -160,53 +176,53 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.6)",
   },
   inputRow: {
     height: 60,
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   inputRowWithBorder: {
     height: 60,
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderTopWidth: 0.5,
-    borderTopColor: '#e5d3bd',
+    borderTopColor: "#e5d3bd",
   },
   inputLabel: {
     fontSize: 14,
-    color: '#6B4D34',
+    color: "#6B4D34",
     flex: 0.4,
   },
   inputField: {
     flex: 0.6,
     fontSize: 14,
-    color: '#2d1b10',
-    textAlign: 'right',
+    color: "#2d1b10",
+    textAlign: "right",
     padding: 0,
   },
   submitButton: {
     marginTop: 24,
     height: 50,
     borderRadius: 16,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,
-    backgroundColor: '#ff8c39',
+    backgroundColor: "#F97316",
   },
   submitText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: "600",
+    color: "#fff",
   },
 });
