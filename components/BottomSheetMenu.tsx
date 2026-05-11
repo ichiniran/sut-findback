@@ -1,21 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
 import {
-    Animated,
-    PanResponder,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-
-function MenuItem({ icon, label, danger, onPress }: any) {
+function MenuItem({ icon, label, danger, onPress, color }: any) {
   return (
     <TouchableOpacity style={styles.item} onPress={onPress}>
-      <Ionicons name={icon} size={22} color={danger ? "red" : "#333"} />
-      <Text style={[styles.text, danger && { color: "red" }]}>
+      <Ionicons
+        name={icon}
+        size={22}
+        color={danger ? "red" : (color ?? "#333")}
+      />
+      <Text
+        style={[styles.text, danger && { color: "red" }, color && { color }]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -30,6 +35,7 @@ export default function BottomSheetMenu({
   onEdit,
   onDelete,
   onReport,
+  onContactAdmin, // ← เพิ่ม prop ใหม่
   isSaved,
   onShare,
 }: any) {
@@ -68,7 +74,7 @@ export default function BottomSheetMenu({
           }).start();
         }
       },
-    })
+    }),
   ).current;
 
   return (
@@ -84,10 +90,10 @@ export default function BottomSheetMenu({
             {...panResponder.panHandlers}
           >
             <View style={styles.dragBar} />
-           
+
             <MenuItem
-              icon={isSaved ? "bookmark" : "bookmark-outline"}  
-              label={isSaved ? "Unsave" : "Save"}               
+              icon={isSaved ? "bookmark" : "bookmark-outline"}
+              label={isSaved ? "ยกเลิกการบันทึก" : "บันทึก"}
               onPress={() => {
                 onSave?.();
                 close();
@@ -98,7 +104,7 @@ export default function BottomSheetMenu({
               <>
                 <MenuItem
                   icon="create-outline"
-                  label="Edit"
+                  label="แก้ไข"
                   onPress={() => {
                     onEdit?.();
                     close();
@@ -106,7 +112,7 @@ export default function BottomSheetMenu({
                 />
                 <MenuItem
                   icon="trash-outline"
-                  label="Delete"
+                  label="ลบ"
                   danger
                   onPress={() => {
                     onDelete?.();
@@ -119,10 +125,21 @@ export default function BottomSheetMenu({
             {!isOwner && (
               <MenuItem
                 icon="flag-outline"
-                label="Report"
+                label="รายงานโพสต์นี้"
                 onPress={() => {
                   onReport?.();
                   close();
+                }}
+              />
+            )}
+            {/* ── ติดต่อแอดมิน*/}
+            {isOwner && (
+              <MenuItem
+                icon="chatbubble-ellipses-outline"
+                label="ติดต่อแอดมิน"
+                onPress={() => {
+                  close();
+                  onContactAdmin?.();
                 }}
               />
             )}

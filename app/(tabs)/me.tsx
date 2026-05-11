@@ -15,14 +15,14 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../../components/UserContext";
+import { ADMIN_NAME, ADMIN_UID } from "../../constants/admin";
 import { app } from "../../constants/firebase";
 
 export default function MeScreen() {
@@ -237,7 +237,17 @@ export default function MeScreen() {
           <Pressable
             style={styles.contactBtn}
             onPress={() => {
-              Linking.openURL("https://line.me/R/ti/p/@750dzczn");
+              if (!user?.uid) {
+                alert("กรุณาเข้าสู่ระบบก่อนติดต่อแอดมิน");
+                return;
+              }
+              router.push({
+                pathname: "/chat/ChatDetail",
+                params: {
+                  targetUid: ADMIN_UID,
+                  targetName: ADMIN_NAME,
+                },
+              });
             }}
           >
             <Ionicons
@@ -245,7 +255,7 @@ export default function MeScreen() {
               size={16}
               color="rgb(164, 164, 164)"
             />
-            <Text style={styles.contactText}>ติดต่อแอดมิน (LINE)</Text>
+            <Text style={styles.contactText}>ติดต่อแอดมิน</Text>
           </Pressable>
 
           <Pressable style={styles.logoutButton} onPress={handleLogout}>

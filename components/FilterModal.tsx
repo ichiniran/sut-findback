@@ -1,79 +1,139 @@
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
 const LOCATIONS = [
-  'อาคารเรียนรวม 1', 'อาคารเรียนรวม 2', 'อาคารเครื่องมือ 1 (F1)',
-  'อาคารเครื่องมือ 2 (F2)', 'อาคารเครื่องมือ 3 (F3)', 'อาคารเครื่องมือ 4 (F4)',
-  'อาคารเครื่องมือ 5 (F5)', 'อาคารเครื่องมือ 6 (F6)', 'อาคารเครื่องมือ 7 (F7)',
-  'อาคารเฉลิมพระเกียรติ 72 พรรษา (F9)', 'อาคารเครื่องมือ 10 (F10)',
-  'อาคารสิรินธรวิศวพัฒน์ (F11)', 'อาคารเทพรัตน์วิทยรักษ์ (F12)',
-  'อาคารเกษตรภิวัฒน์ (F14)', 'อาคารรัฐสีมาคุณากร (ตึกดิจิทัล)',
-  'โรงเรียนสุรวิวัฒน์', 'อาคารบริหาร', 'อาคารวิชาการ 1', 'อาคารวิชาการ 2',
-  'อาคารขนส่ง มทส', 'อาคารบรรณาสาร', 'สำนักงานสภานักศึกษา',
-  'สำนักงานสภานักศึกษา (อาคารกิจการนักศึกษา เก่า)', 'งานทุนการศึกษา มทส.',
-  'ส่วนกิจการนักศึกษา', 'กลุ่มอาคารกิจกรรมนักศึกษาสุรเริงไชย',
-  'สนามสุรพลากรีฑาสถาน', 'SUT Sport and Health Center (สถานกีฬาและสุขภาพ)',
-  'อาคารกีฬาภิรมย์ มทส.', 'ลานหมอลำ (ลานศิลปะวัฒนธรรม)',
-  'ศูนย์สหกิจศึกษาและพัฒนาอาชีพ มหาวิทยาลัยเทคโนโลยีสุรนารี',
-  'อาคารเฉลิมพระเกียรติ 80 พรรษา', 'เทคโนธานี (อาคารสุรพัฒน์ 1)',
-  'อาคารสุรพัฒน์ 2', 'ฟาร์มมหาวิทยาลัย', 'โรงอาหารกาสะลองคำ',
-  'โรงอาหารครัวท่านท้าว', 'โรงอาหารดอนตะวัน', 'โรงอาหารพราวแสดทอง',
-  'โรงเตี๊ยม มทส.', 'โรงอาหารเรียนรวม 2',
-  'หอพักสุรนิเวศ 1 (S1)', 'หอพักสุรนิเวศ 2 (S2)', 'หอพักสุรนิเวศ 3 (S3)',
-  'หอพักสุรนิเวศ 4 (S4)', 'หอพักสุรนิเวศ 5 (S5)', 'หอพักสุรนิเวศ 6 (S6)',
-  'หอพักสุรนิเวศ 7 (S7)', 'หอพักสุรนิเวศ 8 (S8)', 'หอพักสุรนิเวศ 9 (S9)',
-  'หอพักสุรนิเวศ 10 (S10)', 'หอพักสุรนิเวศ 11 (S11)', 'หอพักสุรนิเวศ 12 (S12)',
-  'หอพักสุรนิเวศ 13 (S13)', 'หอพักสุรนิเวศ 14 (S14)', 'หอพักสุรนิเวศ 15 (S15)',
-  'หอพักสุรนิเวศ 16 (S16)', 'หอพักสุรนิเวศ 17 (S17)', 'หอพักสุรนิเวศ 18 (S18)',
-  'หอพักสุรนิเวศ 19 (S19)', 'หอพักสุรนิเวศ 20 (S20)', 'หอพักสุรนิเวศ 21 (S21)',
-  'หอพักสุรนิเวศ 22 (S22)',
+  "อาคารเรียนรวม 1",
+  "อาคารเรียนรวม 2",
+  "อาคารเครื่องมือ 1 (F1)",
+  "อาคารเครื่องมือ 2 (F2)",
+  "อาคารเครื่องมือ 3 (F3)",
+  "อาคารเครื่องมือ 4 (F4)",
+  "อาคารเครื่องมือ 5 (F5)",
+  "อาคารเครื่องมือ 6 (F6)",
+  "อาคารเครื่องมือ 7 (F7)",
+  "อาคารเฉลิมพระเกียรติ 72 พรรษา (F9)",
+  "อาคารเครื่องมือ 10 (F10)",
+  "อาคารสิรินธรวิศวพัฒน์ (F11)",
+  "อาคารเทพรัตน์วิทยรักษ์ (F12)",
+  "อาคารเกษตรภิวัฒน์ (F14)",
+  "อาคารรัฐสีมาคุณากร (ตึกดิจิทัล)",
+  "โรงเรียนสุรวิวัฒน์",
+  "อาคารบริหาร",
+  "อาคารวิชาการ 1",
+  "อาคารวิชาการ 2",
+  "อาคารขนส่ง มทส",
+  "อาคารบรรณาสาร",
+  "สำนักงานสภานักศึกษา",
+  "สำนักงานสภานักศึกษา (อาคารกิจการนักศึกษา เก่า)",
+  "งานทุนการศึกษา มทส.",
+  "ส่วนกิจการนักศึกษา",
+  "กลุ่มอาคารกิจกรรมนักศึกษาสุรเริงไชย",
+  "สนามสุรพลากรีฑาสถาน",
+  "SUT Sport and Health Center (สถานกีฬาและสุขภาพ)",
+  "อาคารกีฬาภิรมย์ มทส.",
+  "ลานหมอลำ (ลานศิลปะวัฒนธรรม)",
+  "ศูนย์สหกิจศึกษาและพัฒนาอาชีพ มหาวิทยาลัยเทคโนโลยีสุรนารี",
+  "อาคารเฉลิมพระเกียรติ 80 พรรษา",
+  "เทคโนธานี (อาคารสุรพัฒน์ 1)",
+  "อาคารสุรพัฒน์ 2",
+  "ฟาร์มมหาวิทยาลัย",
+  "โรงอาหารกาสะลองคำ",
+  "โรงอาหารครัวท่านท้าว",
+  "โรงอาหารดอนตะวัน",
+  "โรงอาหารพราวแสดทอง",
+  "โรงเตี๊ยม มทส.",
+  "โรงอาหารเรียนรวม 2",
+  "หอพักสุรนิเวศ 1 (S1)",
+  "หอพักสุรนิเวศ 2 (S2)",
+  "หอพักสุรนิเวศ 3 (S3)",
+  "หอพักสุรนิเวศ 4 (S4)",
+  "หอพักสุรนิเวศ 5 (S5)",
+  "หอพักสุรนิเวศ 6 (S6)",
+  "หอพักสุรนิเวศ 7 (S7)",
+  "หอพักสุรนิเวศ 8 (S8)",
+  "หอพักสุรนิเวศ 9 (S9)",
+  "หอพักสุรนิเวศ 10 (S10)",
+  "หอพักสุรนิเวศ 11 (S11)",
+  "หอพักสุรนิเวศ 12 (S12)",
+  "หอพักสุรนิเวศ 13 (S13)",
+  "หอพักสุรนิเวศ 14 (S14)",
+  "หอพักสุรนิเวศ 15 (S15)",
+  "หอพักสุรนิเวศ 16 (S16)",
+  "หอพักสุรนิเวศ 17 (S17)",
+  "หอพักสุรนิเวศ 18 (S18)",
+  "หอพักสุรนิเวศ 19 (S19)",
+  "หอพักสุรนิเวศ 20 (S20)",
+  "หอพักสุรนิเวศ 21 (S21)",
+  "หอพักสุรนิเวศ 22 (S22)",
 ];
 
 const CATEGORIES = [
-  'ทั้งหมด', 'กระเป๋า / กระเป๋าสตางค์', 'บัตรนักศึกษา / บัตรประชาชน',
-  'โทรศัพท์ / อุปกรณ์อิเล็กทรอนิกส์', 'เงิน', 'กุญแจ',
-  'เครื่องประดับ', 'เสื้อผ้า', 'อื่น ๆ',
+  "ทั้งหมด",
+  "กระเป๋า / กระเป๋าสตางค์",
+  "บัตรนักศึกษา / บัตรประชาชน",
+  "โทรศัพท์ / อุปกรณ์อิเล็กทรอนิกส์",
+  "เงิน",
+  "กุญแจ",
+  "เครื่องประดับ",
+  "เสื้อผ้า",
+  "อื่น ๆ",
 ];
 
 const STATUS_OPTIONS = [
-  { key: 'all', label: 'ทั้งหมด' },
-  { key: 'waiting', label: 'รอเจ้าของมารับ' },
-  { key: 'claimed', label: 'เจ้าของรับไปแล้ว' },
+  { key: "all", label: "ทั้งหมด" },
+  { key: "waiting", label: "รอเจ้าของมารับ" },
+  { key: "claimed", label: "เจ้าของรับไปแล้ว" },
 ];
 
 export interface FilterOptions {
   category: string;
   location: string;
   dateFrom: string;
-  status: 'all' | 'waiting' | 'claimed'; // ── เพิ่ม ──
+  status: "all" | "waiting" | "claimed";
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onApply: (filters: FilterOptions) => void;
-  showStatusFilter?: boolean; 
+  showStatusFilter?: boolean;
 }
 
-export default function FilterModal({ visible, onClose, onApply, showStatusFilter = false }: Props) {
-  const [category, setCategory] = useState('ทั้งหมด');
-  const [location, setLocation] = useState('ทั้งหมด');
-  const [useDateRange, setUseDateRange] = useState(false);
+export default function FilterModal({
+  visible,
+  onClose,
+  onApply,
+  showStatusFilter = false,
+}: Props) {
+  const [category, setCategory] = useState("ทั้งหมด");
+  const [location, setLocation] = useState("ทั้งหมด");
+  const [dateMode, setDateMode] = useState<"all" | "today" | "custom">("all");
   const [dateFrom, setDateFrom] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [locationSearch, setLocationSearch] = useState('');
+  const [locationSearch, setLocationSearch] = useState("");
   const [filteredLocations, setFilteredLocations] = useState(LOCATIONS);
-  const [status, setStatus] = useState<'all' | 'waiting' | 'claimed'>('all'); // ── เพิ่ม ──
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [status, setStatus] = useState<"all" | "waiting" | "claimed">("all");
 
   const translateY = useRef(new Animated.Value(300)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
-  
-  
   useEffect(() => {
-    const filtered = LOCATIONS.filter(loc =>
-      loc.toLowerCase().includes(locationSearch.toLowerCase())
+    const filtered = LOCATIONS.filter((loc) =>
+      loc.toLowerCase().includes(locationSearch.toLowerCase()),
     );
     setFilteredLocations(filtered);
   }, [locationSearch]);
@@ -81,50 +141,94 @@ export default function FilterModal({ visible, onClose, onApply, showStatusFilte
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateY, { toValue: 300, duration: 250, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(translateY, {
+          toValue: 300,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [visible]);
-const formatDate = (date: Date) =>
-  `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()}`;
 
-const handleClear = () => {
-  setCategory('ทั้งหมด');
-  setLocation('ทั้งหมด');
-  setUseDateRange(false);
-  setDateFrom(new Date());
-  setStatus('all');
-  onApply({ category: 'ทั้งหมด', location: 'ทั้งหมด', dateFrom: '', status: 'all' });
-  onClose();
-};
+  const formatDate = (date: Date) =>
+    `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 
-const handleApply = () => {
-  onApply({
-    category,
-    location,
-    dateFrom: useDateRange ? formatDate(dateFrom) : '',
-    status,
-  });
-  onClose();
-};
+  const handleClear = () => {
+    setCategory("ทั้งหมด");
+    setLocation("ทั้งหมด");
+    setLocationSearch("");
+    setDateMode("all");
+    setDateFrom(new Date());
+    setStatus("all");
+    setShowLocationDropdown(false);
+    onApply({
+      category: "ทั้งหมด",
+      location: "ทั้งหมด",
+      dateFrom: "",
+      status: "all",
+    });
+    onClose();
+  };
+
+  const handleApply = () => {
+    onApply({
+      category,
+      location,
+      dateFrom:
+        dateMode === "custom"
+          ? formatDate(dateFrom)
+          : dateMode === "today"
+            ? formatDate(new Date())
+            : "",
+      status,
+    });
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal
+      visible={visible}
+      animationType="none"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <View style={styles.container}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={onClose}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+          >
             <Animated.View style={[styles.backdrop, { opacity }]} />
           </TouchableOpacity>
 
           <View style={styles.sheet}>
             <View style={styles.handle} />
-            <ScrollView showsVerticalScrollIndicator={false}>
-
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Header */}
               <View style={styles.header}>
                 <Text style={styles.title}>ตัวกรอง</Text>
@@ -133,18 +237,26 @@ const handleApply = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* ── สถานะ (เฉพาะหน้า found) ── */}
+              {/* สถานะ (เฉพาะหน้า found) */}
               {showStatusFilter && (
                 <>
                   <Text style={styles.sectionLabel}>สถานะโพสต์</Text>
                   <View style={styles.chipWrap}>
-                    {STATUS_OPTIONS.map(item => (
+                    {STATUS_OPTIONS.map((item) => (
                       <TouchableOpacity
                         key={item.key}
-                        style={[styles.chip, status === item.key && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          status === item.key && styles.chipActive,
+                        ]}
                         onPress={() => setStatus(item.key as any)}
                       >
-                        <Text style={[styles.chipText, status === item.key && styles.chipTextActive]}>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            status === item.key && styles.chipTextActive,
+                          ]}
+                        >
                           {item.label}
                         </Text>
                       </TouchableOpacity>
@@ -156,13 +268,21 @@ const handleApply = () => {
               {/* ประเภทสิ่งของ */}
               <Text style={styles.sectionLabel}>ประเภทสิ่งของ</Text>
               <View style={styles.chipWrap}>
-                {CATEGORIES.map(item => (
+                {CATEGORIES.map((item) => (
                   <TouchableOpacity
                     key={item}
-                    style={[styles.chip, category === item && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      category === item && styles.chipActive,
+                    ]}
                     onPress={() => setCategory(item)}
                   >
-                    <Text style={[styles.chipText, category === item && styles.chipTextActive]}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        category === item && styles.chipTextActive,
+                      ]}
+                    >
                       {item}
                     </Text>
                   </TouchableOpacity>
@@ -171,64 +291,163 @@ const handleApply = () => {
 
               {/* สถานที่ */}
               <Text style={styles.sectionLabel}>สถานที่</Text>
-              <TextInput
-                placeholder="ค้นหาสถานที่..."
-                value={locationSearch}
-                onChangeText={setLocationSearch}
-                style={styles.locationSearch}
-              />
-              <ScrollView style={{ maxHeight: 150 }}>
-                {filteredLocations.map(item => (
-                  <TouchableOpacity
-                    key={item}
-                    onPress={() => { setLocation(item); setLocationSearch(item); }}
-                    style={styles.locationItem}
-                  >
-                    <Text style={{ color: '#333' }}>{item}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <View style={{ zIndex: 999 }}>
+                <View style={styles.locationInputWrapper}>
+                  <TextInput
+                    placeholder="ค้นหาสถานที่..."
+                    placeholderTextColor="#bbb"
+                    value={locationSearch}
+                    onChangeText={(text) => {
+                      setLocationSearch(text);
+                      setLocation(text === "" ? "ทั้งหมด" : text);
+                      setShowLocationDropdown(true);
+                    }}
+                    onFocus={() => setShowLocationDropdown(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowLocationDropdown(false), 150)
+                    }
+                    style={styles.locationSearch}
+                  />
+                  {locationSearch !== "" ? (
+                    <TouchableOpacity
+                      style={styles.locationIcon}
+                      onPress={() => {
+                        setLocationSearch("");
+                        setLocation("ทั้งหมด");
+                        setShowLocationDropdown(false);
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#aaa" />
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.locationIcon}>
+                      <Ionicons name="search-outline" size={18} color="#aaa" />
+                    </View>
+                  )}
+                </View>
+
+                {/* Dropdown */}
+                {showLocationDropdown && filteredLocations.length > 0 && (
+                  <View style={styles.dropdown}>
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                      style={{ maxHeight: 180 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {filteredLocations.map((item) => (
+                        <TouchableOpacity
+                          key={item}
+                          onPress={() => {
+                            setLocation(item);
+                            setLocationSearch(item);
+                            setShowLocationDropdown(false);
+                          }}
+                          style={[
+                            styles.dropdownItem,
+                            location === item && styles.dropdownItemActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownItemText,
+                              location === item &&
+                                styles.dropdownItemTextActive,
+                            ]}
+                          >
+                            {item}
+                          </Text>
+                          {location === item && (
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#F97316"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
 
               {/* วันที่ */}
               <Text style={styles.sectionLabel}>วันที่</Text>
-              <TouchableOpacity style={styles.radioRow} onPress={() => setUseDateRange(false)}>
-                <View style={[styles.radio, !useDateRange && styles.radioActive]} />
+              <TouchableOpacity
+                style={styles.radioRow}
+                onPress={() => setDateMode("all")}
+              >
+                <View
+                  style={[
+                    styles.radio,
+                    dateMode === "all" && styles.radioActive,
+                  ]}
+                />
+                <Text style={styles.radioLabel}>ทั้งหมด</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.radioRow}
+                onPress={() => setDateMode("today")}
+              >
+                <View
+                  style={[
+                    styles.radio,
+                    dateMode === "today" && styles.radioActive,
+                  ]}
+                />
                 <Text style={styles.radioLabel}>วันนี้</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.radioRow} onPress={() => setUseDateRange(true)}>
-                <View style={[styles.radio, useDateRange && styles.radioActive]} />
-                  <Text style={styles.radioLabel}>ระบุช่วงวันที่</Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.radioRow}
+                onPress={() => setDateMode("custom")}
+              >
+                <View
+                  style={[
+                    styles.radio,
+                    dateMode === "custom" && styles.radioActive,
+                  ]}
+                />
+                <Text style={styles.radioLabel}>ระบุช่วงวันที่</Text>
+              </TouchableOpacity>
 
-                {useDateRange && (
-                  <View style={styles.dateInputRow}>
-                    <TouchableOpacity
-                      style={styles.dateInput}
-                      onPress={() => setShowDatePicker(true)}
+              {dateMode === "custom" && (
+                <View style={styles.dateInputRow}>
+                  <TouchableOpacity
+                    style={styles.dateInput}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 14,
+                        color: dateFrom ? "#333" : "#bbb",
+                      }}
                     >
-                      <Text style={{ flex: 1, fontSize: 14, color: dateFrom ? '#333' : '#bbb' }}>
-                        {dateFrom
-                          ? `${dateFrom.getDate().toString().padStart(2,'0')}/${(dateFrom.getMonth()+1).toString().padStart(2,'0')}/${dateFrom.getFullYear()}`
-                          : 'วว/ดด/ปปปป'}
-                      </Text>
-                      <Ionicons name="calendar-outline" size={18} color="#FBAA58" />
-                    </TouchableOpacity>
+                      {dateFrom
+                        ? `${dateFrom.getDate().toString().padStart(2, "0")}/${(dateFrom.getMonth() + 1).toString().padStart(2, "0")}/${dateFrom.getFullYear()}`
+                        : "วว/ดด/ปปปป"}
+                    </Text>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color="#FBAA58"
+                    />
+                  </TouchableOpacity>
 
-                    {showDatePicker && (
-                      <DateTimePicker
-                        value={dateFrom || new Date()}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                        onChange={(event, selected) => {
-                          setShowDatePicker(Platform.OS === 'ios'); // iOS ค้างไว้, Android ปิดเอง
-                          if (selected) setDateFrom(selected);
-                        }}
-                        maximumDate={new Date()}
-                      />
-                    )}
-                  </View>
-                )}
-
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={dateFrom || new Date()}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(event, selected) => {
+                        setShowDatePicker(Platform.OS === "ios");
+                        if (selected) setDateFrom(selected);
+                      }}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                </View>
+              )}
             </ScrollView>
 
             {/* Buttons */}
@@ -250,72 +469,157 @@ const handleApply = () => {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    maxHeight: '80%',
+    maxHeight: "80%",
   },
   handle: {
-    width: 40, height: 4,
-    backgroundColor: '#ddd', borderRadius: 2,
-    alignSelf: 'center', marginBottom: 12,
+    width: 40,
+    height: 4,
+    backgroundColor: "#ddd",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 12,
   },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  title: { fontSize: 16, fontWeight: '700', color: '#333' },
+  title: { fontSize: 16, fontWeight: "700", color: "#333" },
   sectionLabel: {
-    fontSize: 14, fontWeight: '600', color: '#5A4633',
-    marginTop: 16, marginBottom: 10,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#5A4633",
+    marginTop: 16,
+    marginBottom: 10,
   },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: '#ddd', backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
   },
-  chipActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
-  chipText: { fontSize: 13, color: '#555' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  chipActive: { backgroundColor: "#F97316", borderColor: "#F97316" },
+  chipText: { fontSize: 13, color: "#555" },
+  chipTextActive: { color: "#fff", fontWeight: "600" },
+
+  // Location
+  locationInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    backgroundColor: "#fff",
+  },
   locationSearch: {
-    borderWidth: 1, borderColor: '#ddd',
-    borderRadius: 10, padding: 10, marginBottom: 10,
-  },
-  locationItem: {
+    flex: 1,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderBottomWidth: 1, borderColor: '#eee',
+    fontSize: 14,
+    color: "#333",
   },
-  radioRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ddd' },
-  radioActive: { borderColor: '#F97316', backgroundColor: '#F97316' },
-  radioLabel: { fontSize: 14, color: '#333' },
+  locationIcon: {
+    paddingHorizontal: 10,
+  },
+  dropdown: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderColor: "#f5f5f5",
+  },
+  dropdownItemActive: {
+    backgroundColor: "#FFF4ED",
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: "#333",
+    flex: 1,
+  },
+  dropdownItemTextActive: {
+    color: "#F97316",
+    fontWeight: "600",
+  },
+
+  // Date
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+  },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#ddd",
+  },
+  radioActive: { borderColor: "#F97316", backgroundColor: "#F97316" },
+  radioLabel: { fontSize: 14, color: "#333" },
   dateInputRow: { marginTop: 10 },
-  dateLabel: { fontSize: 13, color: '#777', marginBottom: 6 },
   dateInput: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: '#F0E6DA',
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F0E6DA",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  btnRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+
+  // Buttons
+  btnRow: { flexDirection: "row", gap: 12, marginTop: 20 },
   btnClear: {
-    flex: 1, paddingVertical: 14, borderRadius: 12,
-    borderWidth: 1, borderColor: '#ddd', alignItems: 'center',
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    alignItems: "center",
   },
-  btnClearText: { fontSize: 15, color: '#555', fontWeight: '600' },
+  btnClearText: { fontSize: 15, color: "#555", fontWeight: "600" },
   btnApply: {
-    flex: 1, paddingVertical: 14,
-    borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center',
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F97316",
+    alignItems: "center",
   },
-  btnApplyText: { fontSize: 15, color: '#fff', fontWeight: '600' },
+  btnApplyText: { fontSize: 15, color: "#fff", fontWeight: "600" },
 });
