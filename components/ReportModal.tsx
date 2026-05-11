@@ -1,13 +1,27 @@
 import { Ionicons } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, where } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert, Animated,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { app } from "../constants/firebase";
 
@@ -24,102 +38,103 @@ export default function ReportModal({
   setSelectedReason: (reason: string) => void;
   postId: string;
 }) {
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    // ฟังก์ชันสำหรับส่งรายงานเข้า Firestore
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const [customReason, setCustomReason] = useState("");
+  // ฟังก์ชันสำหรับส่งรายงานเข้า Firestore
   const handleReport = async () => {
-  if (!selectedReason || !auth.currentUser) return;
+    const finalReason =
+      selectedReason === "อื่น ๆ" && customReason.trim()
+        ? `อื่น ๆ: ${customReason.trim()}`
+        : selectedReason;
 
-  try {
-    const user = auth.currentUser;
-
-    // 🔥 ไปดึง username จาก users collection
-    let username = "";
+    if (!selectedReason || !auth.currentUser) return;
 
     try {
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (userSnap.exists()) {
-        username = userSnap.data().username || "";
+      const user = auth.currentUser;
+
+      let username = "";
+
+      try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        if (userSnap.exists()) {
+          username = userSnap.data().username || "";
+        }
+      } catch (e) {
+        console.error("โหลด username ไม่ได้", e);
       }
+
+      const q = query(
+        collection(db, "reports"),
+        where("postId", "==", postId),
+        where("reportedBy", "==", user.uid),
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        Alert.alert("แจ้งเตือน", "คุณเคยรายงานโพสต์นี้แล้ว");
+        return;
+      }
+
+      await addDoc(collection(db, "reports"), {
+        postId,
+        reportedBy: user.uid,
+        reporterUsername: username,
+        reason: finalReason,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        reviewedAt: null,
+        notified: false,
+      });
+
+      Alert.alert("ส่งรายงานแล้ว", "เราจะตรวจสอบโดยเร็วที่สุด");
+      setSelectedReason("");
+      setCustomReason("");
+      onClose();
     } catch (e) {
-      console.error("โหลด username ไม่ได้", e);
+      console.error("Report error", e);
+      Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถส่งรายงานได้");
     }
-
-    
-    const q = query(
-      collection(db, "reports"),
-      where("postId", "==", postId),
-      where("reportedBy", "==", user.uid)
-    );
-
-    const snapshot = await getDocs(q);
-
-    if (!snapshot.empty) {
-      Alert.alert("แจ้งเตือน", "คุณเคยรายงานโพสต์นี้แล้ว");
-      return;
-    }
-
-    // ✅ เพิ่ม report (ใส่ username ไปเลย!)
-    await addDoc(collection(db, "reports"), {
-      postId,
-      reportedBy: user.uid,
-      reporterUsername: username, // ✅ ใส่ตรงนี้
-      reason: selectedReason,
-      status: "pending",
-      createdAt: serverTimestamp(),
-      reviewedAt: null,
-      notified: false,
-    });
-
-    Alert.alert("ส่งรายงานแล้ว", "เราจะตรวจสอบโดยเร็วที่สุด");
-    setSelectedReason("");
-    onClose();
-
-  } catch (e) {
-    console.error("Report error", e);
-    Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถส่งรายงานได้");
-  }
-};
+  };
   const slideAnim = useRef(new Animated.Value(600)).current; // เริ่มต้นซ่อนไว้ด้านล่าง
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [isRendered, setIsRendered] = useState(false);
   useEffect(() => {
-  if (visible) {
-    setIsRendered(true);
+    if (visible) {
+      setIsRendered(true);
 
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        damping: 20,
-        mass: 0.8,
-        stiffness: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-  } else {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 600,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setIsRendered(false);   
-    });
-  }
-}, [visible]);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          damping: 20,
+          mass: 0.8,
+          stiffness: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 600,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIsRendered(false);
+      });
+    }
+  }, [visible]);
   // ต้องคง render ไว้เพื่อให้ animation ปิดทำงานได้
   if (!isRendered) return null;
 
@@ -155,67 +170,108 @@ export default function ReportModal({
     >
       {/* Backdrop fade */}
       <Animated.View style={[styles.backdropLayer, { opacity: fadeAnim }]} />
-
-      {/* Sheet สไลด์ขึ้น/ลง */}
-      <Animated.View
-        style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
-        onStartShouldSetResponder={() => true}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ width: "100%" }}
       >
-        <View style={styles.handleBar} />
+        {/* Sheet สไลด์ขึ้น/ลง */}
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={styles.handleBar} />
 
-        <View style={styles.header}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="flag-outline" size={26} color="gray" />
+          <View style={styles.header}>
+            <View style={styles.iconWrap}>
+              <Ionicons name="flag-outline" size={26} color="gray" />
+            </View>
+
+            <Text style={styles.title}>รายงานโพสต์</Text>
+
+            <Text style={styles.subtitle}>เลือกเหตุผลที่ตรงกับปัญหาที่พบ</Text>
           </View>
-          <Text style={styles.title}>รายงานโพสต์</Text>
-          <Text style={styles.subtitle}>เลือกเหตุผลที่ตรงกับปัญหาที่พบ</Text>
-        </View>
 
-        <View style={styles.divider} />
+          <View style={styles.divider} />
 
-        <View style={styles.reasonsContainer}>
-          {reasons.map((item) => {
-            const isSelected = selectedReason === item.label;
-            return (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.item, isSelected && styles.itemSelected]}
-                onPress={() => setSelectedReason(item.label)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.itemLeft}>
-                  <Text style={styles.itemIcon}>{item.icon}</Text>
-                  <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
-                    {item.label}
-                  </Text>
-                </View>
-                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                  {isSelected && <View style={styles.radioDot} />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          {/* เหตุผล */}
+          <View style={styles.reasonsContainer}>
+            {reasons.map((item) => {
+              const isSelected = selectedReason === item.label;
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.submitBtn, !selectedReason && styles.submitBtnDisabled]}
-            onPress={handleReport}
-            disabled={!selectedReason}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.submitText}>รายงานโพสต์นี้</Text>
-          </TouchableOpacity>
+              return (
+                <TouchableOpacity
+                  key={item.label}
+                  style={[styles.item, isSelected && styles.itemSelected]}
+                  onPress={() => setSelectedReason(item.label)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.itemLeft}>
+                    <Text style={styles.itemIcon}>{item.icon}</Text>
 
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={handleClose}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelText}>ยกเลิก</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+                    <Text
+                      style={[
+                        styles.itemText,
+                        isSelected && styles.itemTextSelected,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[styles.radio, isSelected && styles.radioSelected]}
+                  >
+                    {isSelected && <View style={styles.radioDot} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* ช่องกรอกเหตุผลเพิ่มเติม */}
+          {selectedReason === "อื่น ๆ" && (
+            <View style={styles.customInputWrap}>
+              <TextInput
+                style={styles.customInput}
+                placeholder="ระบุเหตุผลเพิ่มเติม..."
+                placeholderTextColor={TEXT_SECONDARY}
+                value={customReason}
+                onChangeText={setCustomReason}
+                multiline
+                maxLength={200}
+              />
+            </View>
+          )}
+
+          {/* ปุ่ม */}
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                (!selectedReason ||
+                  (selectedReason === "อื่น ๆ" && !customReason.trim())) &&
+                  styles.submitBtnDisabled,
+              ]}
+              onPress={handleReport}
+              disabled={
+                !selectedReason ||
+                (selectedReason === "อื่น ๆ" && !customReason.trim())
+              }
+              activeOpacity={0.85}
+            >
+              <Text style={styles.submitText}>รายงานโพสต์นี้</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={handleClose}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelText}>ยกเลิก</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </TouchableOpacity>
   );
 }
@@ -230,7 +286,10 @@ const BORDER = "#F3F4F6";
 const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "flex-end",
     alignItems: "center",
   },
@@ -253,7 +312,8 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   handleBar: {
-    width: 40, height: 4,
+    width: 40,
+    height: 4,
     borderRadius: 2,
     backgroundColor: "#E5E7EB",
     alignSelf: "center",
@@ -264,7 +324,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   iconWrap: {
-    width: 56, height: 56,
+    width: 56,
+    height: 56,
     borderRadius: 28,
     backgroundColor: "#eaeaea",
     alignItems: "center",
@@ -272,7 +333,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 18, fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "700",
     color: TEXT_PRIMARY,
     letterSpacing: -0.3,
     marginBottom: 4,
@@ -289,7 +351,7 @@ const styles = StyleSheet.create({
   },
   reasonsContainer: {
     gap: 4,
-    marginBottom: 24,
+    marginBottom: 15,
   },
   item: {
     flexDirection: "row",
@@ -298,12 +360,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "transparent",
     backgroundColor: "#FAFAFA",
   },
   itemSelected: {
-    backgroundColor: ACCENT_LIGHT,
+    backgroundColor: "#FFF3E8",
     borderColor: ACCENT,
   },
   itemLeft: {
@@ -326,7 +388,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   radio: {
-    width: 22, height: 22,
+    width: 22,
+    height: 22,
     borderRadius: 11,
     borderWidth: 2,
     borderColor: "#D1D5DB",
@@ -338,7 +401,8 @@ const styles = StyleSheet.create({
     borderColor: ACCENT,
   },
   radioDot: {
-    width: 10, height: 10,
+    width: 10,
+    height: 10,
     borderRadius: 5,
     backgroundColor: ACCENT,
   },
@@ -350,11 +414,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    //shadowColor: ACCENT,
+    //shadowOffset: { width: 0, height: 4 },
+    //shadowOpacity: 0.3,
+    //shadowRadius: 12,
+    //elevation: 6,
   },
   submitBtnDisabled: {
     backgroundColor: "#E5E7EB",
@@ -377,5 +441,20 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     fontSize: 14,
     fontWeight: "600",
+  },
+  customInputWrap: {
+    borderWidth: 1,
+    borderColor: "#d2d2d2",
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 15,
+  },
+  customInput: {
+    fontSize: 14,
+    color: TEXT_PRIMARY,
+    minHeight: 72,
+    textAlignVertical: "top",
   },
 });

@@ -1,16 +1,23 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
 
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
+import {
+  Animated,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 interface PostCardProps {
   postId?: string;
   userId?: string;
-  type?: 'found' | 'lost';
+  type?: "found" | "lost";
   image: { uri: string } | number;
   images?: string[];
-  receiveLocationImage?: string;   // รูปจุดฝาก
+  receiveLocationImage?: string; // รูปจุดฝาก
   title: string;
   detail?: string;
   desc?: string;
@@ -27,19 +34,33 @@ interface PostCardProps {
   longitude?: number;
   currentStatus?: string;
 }
- const COLORS = {
-  green: '#16a34a',
-  greenLight: '#f0fdf4',
+const COLORS = {
+  green: "#16a34a",
+  greenLight: "#f0fdf4",
 };
 export default function PostCard(props: PostCardProps) {
- 
   const {
-    postId, userId, type = 'found',
-    image, images, receiveLocationImage,
-    title, detail, desc,
-    location, locationName, locationDetail, receiveLocation,
-    user, username, date, createdAt,
-    category, latitude, longitude, currentStatus,
+    postId,
+    userId,
+    type = "found",
+    image,
+    images,
+    receiveLocationImage,
+    title,
+    detail,
+    desc,
+    location,
+    locationName,
+    locationDetail,
+    receiveLocation,
+    user,
+    username,
+    date,
+    createdAt,
+    category,
+    latitude,
+    longitude,
+    currentStatus,
   } = props;
 
   const router = useRouter();
@@ -47,65 +68,88 @@ export default function PostCard(props: PostCardProps) {
   const thumbUri =
     images && images.length > 0
       ? images[0]
-      : typeof image === 'object' && 'uri' in image
-      ? image.uri
-      : null;
+      : typeof image === "object" && "uri" in image
+        ? image.uri
+        : null;
 
   const handlePress = () => {
     router.push({
-      pathname: '/post-detail',
+      pathname: "/post-detail",
       params: {
-        postId: postId || '',
-        userId: userId || '',
+        postId: postId || "",
+        userId: userId || "",
         type,
         fromTab: type,
-        title: title || '',
-        detail: detail || desc || '',
-        location: location || '',
-        locationName: locationName || location || '',
-        locationDetail: locationDetail || '',
-        receiveLocation: receiveLocation || '',
-        username: username || user || '',
-        user: user || '',
-        date: date || '',
-        createdAt: createdAt || '',
-        images: images && images.length > 0 ? JSON.stringify(images) : '',
-        imageUri: thumbUri || '',
-        receiveLocationImage: receiveLocationImage || '',   // ส่งรูปจุดฝาก
-        category: category || '',
-        latitude: latitude != null ? String(latitude) : '',
-        longitude: longitude != null ? String(longitude) : '',
-        currentStatus: currentStatus || '',
+        title: title || "",
+        detail: detail || desc || "",
+        location: location || "",
+        locationName: locationName || location || "",
+        locationDetail: locationDetail || "",
+        receiveLocation: receiveLocation || "",
+        username: username || user || "",
+        user: user || "",
+        date: date || "",
+        createdAt: createdAt || "",
+        images: images && images.length > 0 ? JSON.stringify(images) : "",
+        imageUri: thumbUri || "",
+        receiveLocationImage: receiveLocationImage || "", // ส่งรูปจุดฝาก
+        category: category || "",
+        latitude: latitude != null ? String(latitude) : "",
+        longitude: longitude != null ? String(longitude) : "",
+        currentStatus: currentStatus || "",
       },
     });
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.88}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={0.88}
+    >
       <View style={styles.cardInner}>
-       {thumbUri ? (
+        {thumbUri ? (
           <View>
-            <Image source={{ uri: thumbUri }} style={styles.image} resizeMode="cover" />
-            <StatusChip status={(currentStatus as 'waiting' | 'claimed') || 'waiting'} isFound={type === 'found'} />
+            <Image
+              source={{ uri: thumbUri }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            <StatusChip
+              status={(currentStatus as "waiting" | "claimed") || "waiting"}
+              isFound={type === "found"}
+            />
           </View>
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Ionicons name="image-outline" size={48} color="rgba(63,63,63,0.4)" />
+            <Ionicons
+              name="image-outline"
+              size={48}
+              color="rgba(63,63,63,0.4)"
+            />
             <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
-            <StatusChip status={(currentStatus as 'waiting' | 'claimed') || 'waiting'} isFound={type === 'found'} />
+            <StatusChip
+              status={(currentStatus as "waiting" | "claimed") || "waiting"}
+              isFound={type === "found"}
+            />
           </View>
         )}
 
         <View style={styles.cardBody}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
-          {(desc || detail) ? (
-            <Text style={styles.cardDesc} numberOfLines={2}>{desc || detail}</Text>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {desc || detail ? (
+            <Text style={styles.cardDesc} numberOfLines={1}>
+              {desc || detail}
+            </Text>
           ) : null}
 
-          {(locationName || location) ? (
+          {locationName || location ? (
             <LinearGradient
-              colors={['#FFBB6B', '#F97316']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              colors={["#FFBB6B", "#F97316"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.location}
             >
               <Ionicons name="location-outline" size={12} color="#fff" />
@@ -116,34 +160,50 @@ export default function PostCard(props: PostCardProps) {
           ) : null}
 
           <View style={styles.footer}>
-            <Text style={styles.user} numberOfLines={1}>{username || user || '-'}</Text>
-            <Text style={styles.date}>{date || '-'}</Text>
+            <Text style={styles.user} numberOfLines={1}>
+              {username || user || "-"}
+            </Text>
+            <Text style={styles.date}>{date || "-"}</Text>
           </View>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
-function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFound: boolean }) {
+function StatusChip({
+  status,
+  isFound,
+}: {
+  status: "waiting" | "claimed";
+  isFound: boolean;
+}) {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (status === 'claimed') return;
+    if (status === "claimed") return;
     const blink = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      ])
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
     );
     blink.start();
     return () => blink.stop();
   }, [status]);
 
-  if (status === 'claimed') {
+  if (status === "claimed") {
     return (
       <View style={[chipStyles.badge, { backgroundColor: COLORS.greenLight }]}>
         <Text style={[chipStyles.statusText, { color: COLORS.green }]}>
-          ● {isFound ? 'เจ้าของมารับแล้ว' : 'ได้รับของแล้ว'}
+          ● {isFound ? "เจ้าของมารับแล้ว" : "ได้รับของคืนแล้ว"}
         </Text>
       </View>
     );
@@ -151,8 +211,10 @@ function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFoun
 
   if (!isFound) {
     return (
-      <View style={[chipStyles.badge, { backgroundColor: '#fef2f2ad' }]}>
-        <Animated.Text style={[chipStyles.statusText, { color: '#f00000', opacity }]}>
+      <View style={[chipStyles.badge, { backgroundColor: "#fef2f2ad" }]}>
+        <Animated.Text
+          style={[chipStyles.statusText, { color: "#f00000", opacity }]}
+        >
           ● ยังตามหาของอยู่
         </Animated.Text>
       </View>
@@ -160,8 +222,10 @@ function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFoun
   }
 
   return (
-    <View style={[chipStyles.badge, { backgroundColor: '#fef7f2' }]}>
-      <Animated.Text style={[chipStyles.statusText, { color: '#E67E22', opacity }]}>
+    <View style={[chipStyles.badge, { backgroundColor: "#fef7f2" }]}>
+      <Animated.Text
+        style={[chipStyles.statusText, { color: "#E67E22", opacity }]}
+      >
         ● รอเจ้าของมารับ
       </Animated.Text>
     </View>
@@ -170,48 +234,63 @@ function StatusChip({ status, isFound }: { status: 'waiting' | 'claimed'; isFoun
 
 const chipStyles = StyleSheet.create({
   badge: {
-    position: 'absolute',
-    top: 8, right: 8,
-    paddingHorizontal: 8, paddingVertical: 4,
+    position: "absolute",
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
   },
-  statusText: { fontSize: 10, fontWeight: '600' },
+  statusText: { fontSize: 10, fontWeight: "600" },
 });
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff', borderRadius: 15,
-    margin: 5, width: '48%',
-    borderColor: '#ffeedc', borderWidth: 1,
-    shadowColor: '#ff863a',
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    margin: 5,
+    width: "48%",
+    borderColor: "#ffeedc",
+    borderWidth: 1,
+    shadowColor: "#ff863a",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 2, elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 4,
   },
-  cardInner: { borderRadius: 15, overflow: 'hidden' },
-  image: { width: '100%', height: 150 },
+  cardInner: { borderRadius: 15, overflow: "hidden" },
+  image: { width: "100%", height: 150 },
   imagePlaceholder: {
-  width: '100%',
-  height: 150,
-  backgroundColor: '#f6f6f6',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-
-noImageText: {
-  marginTop: 6,
-  fontSize: 12,
-  color: '#999',
-},
-  cardBody: { padding: 10 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#5A4633' },
-  cardDesc: { fontSize: 12, color: '#777', marginVertical: 3 },
-  location: {
-    flexDirection: 'row', alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 20, marginTop: 5,marginRight: 8, 
+    width: "100%",
+    height: 150,
+    backgroundColor: "#f6f6f6",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  locationText: { fontSize: 12, marginLeft: 4, color: '#fff' },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  user: { fontSize: 12, color: '#999', flex: 1, marginRight: 4 },
-  date: { fontSize: 12, color: '#FBAA58' },
+
+  noImageText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#999",
+  },
+  cardBody: { padding: 10 },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: "#5A4633" },
+  cardDesc: { fontSize: 12, color: "#777", marginVertical: 3, marginBottom: 6 },
+  location: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    //marginTop: -10,
+    marginRight: 8,
+  },
+  locationText: { fontSize: 12, marginLeft: 4, color: "#fff" },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  user: { fontSize: 12, color: "#999", flex: 1, marginRight: 4 },
+  date: { fontSize: 12, color: "#FBAA58" },
 });

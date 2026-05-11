@@ -90,6 +90,8 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // เก็บ username ล่าสุดของแต่ละ userId
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
   // filters
   const [statusFilter, setStatusFilter] = useState<
     "all" | "pending" | "reviewed"
@@ -118,7 +120,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, "reports"),
-      (snap) => {
+      async (snap) => {
         const data = snap.docs.map(
           (d) => ({ id: d.id, ...d.data() }) as Report,
         );
@@ -126,6 +128,22 @@ export default function ReportsPage() {
           return toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime();
         });
         setReports(data);
+
+        // ดึง username ล่าสุดของผู้แจ้งทุกคน
+        const userIds = Array.from(new Set(data.map((r) => r.reportedBy)));
+        const usernameMap: Record<string, string> = {};
+        await Promise.all(
+          userIds.map(async (uid) => {
+            try {
+              const userSnap = await getDoc(doc(db, "users", uid));
+              if (userSnap.exists()) {
+                const u = userSnap.data() as UserInfo;
+                if (u.username) usernameMap[uid] = u.username;
+              }
+            } catch {}
+          }),
+        );
+        setUsernames(usernameMap);
         setLoading(false);
       },
       (err) => {
@@ -223,6 +241,36 @@ export default function ReportsPage() {
     });
   };
 
+  // ── ฟังก์ชันส่ง notification ไปหาเจ้าของโพสต์ ──
+  const sendOwnerNotification = async (report: Report, post: Post | null) => {
+    if (!post?.userId) return;
+    await addDoc(collection(db, "users", post.userId, "notifications"), {
+      type: "post_rejected_by_admin",
+      title: "โพสต์ของคุณถูกปิดกั้น",
+      desc: `โพสต์ของคุณถูกปิดกั้น เนื่องจากมีผู้รายงานว่า "${report.reason}"`,
+      postId: report.postId,
+      postTitle: post.category || "",
+      detail: post.detail || "",
+      location: post.location || "",
+      locationName: post.locationName || "",
+      locationDetail: post.locationDetail || "",
+      receiveLocation: post.receiveLocation || "",
+      username: post.username || "",
+      userId: post.userId || "",
+      date: post.date || "",
+      images: post.images ? JSON.stringify(post.images) : "",
+      itemImage:
+        Array.isArray(post.images) && post.images.length > 0
+          ? post.images[0]
+          : "",
+      category: post.category || "",
+      latitude: post.latitude ?? "",
+      longitude: post.longitude ?? "",
+      currentStatus: "rejected",
+      isRead: false,
+      createdAt: serverTimestamp(),
+    });
+  };
   // ── Action: reviewed only ──
   const handleReviewed = async () => {
     if (!selectedReport) return;
@@ -261,7 +309,7 @@ export default function ReportsPage() {
 
       // ✅ ส่ง notification
       await sendReviewedNotification(selectedReport, selectedPost);
-
+      await sendOwnerNotification(selectedReport, selectedPost);
       showToast("ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว", "success");
       closeDetail();
     } catch {
@@ -273,7 +321,8 @@ export default function ReportsPage() {
   // ── Filter ──
   const filtered = reports.filter((r) => {
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
-    if (reasonFilter !== "all" && r.reason !== reasonFilter) return false;
+    if (reasonFilter !== "all" && !r.reason.startsWith(reasonFilter))
+      return false;
     const d = toDateInput(r.createdAt);
     if (dateFrom && d < dateFrom) return false;
     if (dateTo && d > dateTo) return false;
@@ -299,10 +348,29 @@ export default function ReportsPage() {
         <div
           style={{
             ...s.toast,
-            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+
+            backgroundColor:
+              toast.type === "success"
+                ? "rgba(34,197,94,0.04)"
+                : "rgba(239,68,68,0.04)",
+
+            border:
+              toast.type === "success"
+                ? "1px solid rgba(34,197,94,0.22)"
+                : "1px solid rgba(239,68,68,0.22)",
+
+            color: toast.type === "success" ? "#16a34a" : "#dc2626",
+
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+
+            boxShadow:
+              toast.type === "success"
+                ? "0 8px 24px rgba(34,197,94,0.10)"
+                : "0 8px 24px rgba(239,68,68,0.10)",
           }}
         >
-          {toast.type === "success" ? "✅" : "❌"} {toast.msg}
+          {toast.msg}
         </div>
       )}
 
@@ -370,19 +438,43 @@ export default function ReportsPage() {
             ))}
           </select>
 
-          <input
-            type="date"
-            style={s.dateInput}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input");
+              input?.showPicker();
+            }}
+          >
+            <input
+              type="date"
+              style={{ ...s.dateInput, paddingLeft: 10, cursor: "pointer" }}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
           <span style={{ color: "#a0856a", fontSize: 13 }}>–</span>
-          <input
-            type="date"
-            style={s.dateInput}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input");
+              input?.showPicker();
+            }}
+          >
+            <input
+              type="date"
+              style={{ ...s.dateInput, paddingLeft: 10, cursor: "pointer" }}
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
 
           {(statusFilter !== "all" ||
             reasonFilter !== "all" ||
@@ -436,14 +528,19 @@ export default function ReportsPage() {
                   </td>
 
                   <td style={s.td}>
-                    {r.reporterUsername
-                      ? `@${r.reporterUsername}`
-                      : r.reportedBy.slice(0, 10) + "…"}
+                    {usernames[r.reportedBy] ? (
+                      `@${usernames[r.reportedBy]}`
+                    ) : (
+                      <span style={{ color: "#bbb" }}>
+                        {r.reportedBy.slice(0, 10) + "…"}
+                      </span>
+                    )}
                   </td>
 
                   <td style={s.td}>
                     <span style={s.reasonTag}>
-                      {REASONS.find((x) => x.label === r.reason)?.icon ?? ""}{" "}
+                      {REASONS.find((x) => r.reason.startsWith(x.label))
+                        ?.icon ?? ""}{" "}
                       {r.reason}
                     </span>
                   </td>
@@ -516,7 +613,11 @@ export default function ReportsPage() {
                   />
                   <InfoRow
                     label="เหตุผล"
-                    value={`${REASONS.find((x) => x.label === selectedReport.reason)?.icon ?? ""} ${selectedReport.reason}`}
+                    value={`${
+                      REASONS.find((x) =>
+                        selectedReport.reason.startsWith(x.label),
+                      )?.icon ?? ""
+                    } ${selectedReport.reason}`}
                   />
                   <InfoRow
                     label="วันที่แจ้ง"
@@ -581,7 +682,7 @@ export default function ReportsPage() {
                             color: "#c62828",
                           }}
                         >
-                          🗑️ ถูกลบแล้ว
+                          ถูกลบแล้ว
                         </span>
                       )}
                     </div>
@@ -824,7 +925,7 @@ export default function ReportsPage() {
 
               {selectedReport.status === "reviewed" && (
                 <div style={s.reviewedNote}>
-                  ✅ Report นี้ได้รับการตรวจสอบแล้ว
+                  Report นี้ได้รับการตรวจสอบแล้ว
                   {selectedReport.reviewedAt &&
                     ` เมื่อ ${toDateStr(selectedReport.reviewedAt)}`}
                 </div>
@@ -894,7 +995,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 20,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   header: {
     display: "flex",
@@ -909,7 +1010,13 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.5px",
     fontFamily: "'Inter', sans-serif",
   },
-  subtitle: { fontSize: 13, color: "#a0856a", marginTop: 4, marginLeft: 4 },
+  subtitle: {
+    fontSize: 13,
+    color: "#a0856a",
+    marginTop: 4,
+    marginLeft: 4,
+    fontFamily: "'Kanit', sans-serif",
+  },
   badge: {
     background: "rgba(255,255,255,0.7)",
     border: "1px solid #f0e6dc",
@@ -941,7 +1048,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     transition: "all 0.18s",
   },
   tabActive: {
@@ -963,8 +1070,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     color: "#5A4633",
     fontSize: 13,
-    fontFamily: "'Sarabun', sans-serif",
-    cursor: "pointer",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   dateInput: {
     padding: "7px 10px",
@@ -973,7 +1079,9 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     color: "#5A4633",
     fontSize: 13,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
+    cursor: "pointer",
+    width: 140,
   },
   clearBtn: {
     padding: "7px 14px",
@@ -984,7 +1092,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   tableWrap: {
     background: "rgba(255,255,255,0.75)",
@@ -1040,7 +1148,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     transition: "all 0.15s",
   },
   empty: {
@@ -1070,7 +1178,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex", // ← เพิ่ม
     flexDirection: "column", // ← เพิ่ม
     boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   modalHeader: {
     display: "flex",
@@ -1083,7 +1191,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: "#5A4633",
     margin: 0,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   closeBtn: {
     background: "none",
@@ -1125,7 +1233,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     transition: "opacity 0.15s",
   },
   btnReviewed: {
@@ -1160,7 +1268,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     zIndex: 2000,
     boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     whiteSpace: "nowrap" as const,
   },
 };

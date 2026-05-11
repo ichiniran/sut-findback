@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   PackageSearch,
   PieChart as PieChartIcon,
-  Users
+  Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           >
             <LayoutDashboard size={24} /> Dashboard
           </h1>
-          <p style={s.subtitle}>จัดการผู้ใช้งานในระบบ</p>
+          <p style={s.subtitle}>ภาพรวมในระบบ</p>
         </div>
         <div style={s.dateBadge}>
           <Calendar size={16} />
@@ -186,7 +186,7 @@ export default function DashboardPage() {
 
           <ResponsiveContainer width="100%" height={210}>
             <BarChart
-              data={[{ name: "วันนี้", พบของ: todayFound, หายของ: todayLost }]}
+              data={[{ name: "วันนี้", พบของ: todayFound, ของหาย: todayLost }]}
               barSize={44}
             >
               <XAxis
@@ -203,21 +203,22 @@ export default function DashboardPage() {
               />
               <Tooltip
                 contentStyle={{
+                  fontSize: 14,
                   borderRadius: 12,
                   border: "none",
                   boxShadow: "0 4px 20px rgba(90,70,51,0.12)",
-                  fontFamily: "Sarabun",
+                  fontFamily: "Noto Sans Thai",
                 }}
                 cursor={{ fill: "#fff7f0" }}
               />
               <Bar dataKey="พบของ" fill="#F97316" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="หายของ" fill="#FBAA58" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="ของหาย" fill="#FBAA58" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
 
           <div style={s.legend}>
             <LegendDot color="#F97316" label="พบของ" />
-            <LegendDot color="#FBAA58" label="หายของ" />
+            <LegendDot color="#FBAA58" label="ของหาย" />
           </div>
         </div>
 
@@ -248,10 +249,11 @@ export default function DashboardPage() {
                   </Pie>
                   <Tooltip
                     contentStyle={{
+                      fontSize: 14,
                       borderRadius: 12,
                       border: "none",
                       boxShadow: "0 4px 20px rgba(90,70,51,0.12)",
-                      fontFamily: "Sarabun",
+                      fontFamily: "Noto Sans Thai",
                     }}
                   />
                 </PieChart>
@@ -317,7 +319,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 24,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
 
   header: {
@@ -339,6 +341,7 @@ const s: Record<string, React.CSSProperties> = {
 
   subtitle: {
     fontSize: 13,
+    fontFamily: "'Kanit', sans-serif",
     color: "#a0856a",
     marginTop: 6,
     marginLeft: 0,

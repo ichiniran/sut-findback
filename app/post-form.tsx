@@ -112,7 +112,7 @@ const SUT_DEFAULT = { latitude: 14.8775, longitude: 102.017 };
 
 const todayFormatted = () => {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear() + 543}`;
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 };
 
 const uploadToCloudinary = async (localUri: string): Promise<string> => {
@@ -573,13 +573,33 @@ export default function PostForm() {
         }
         const docRef = await addDoc(collection(db, "posts"), postData);
         await setDoc(docRef, { postId: docRef.id }, { merge: true });
-        Alert.alert("บันทึกสำเร็จ", "โพสต์ของคุณถูกบันทึกแล้ว");
-        resetForm();
-        router.replace({
-          pathname: "/(tabs)",
-          params: { fromTab: type === "found" ? "found" : "lost" },
-        });
-      }
+
+        if (isFound) {
+          Alert.alert(
+            "โพสต์สำเร็จแล้ว!",
+            "หากมีผู้มารับของคืน กรุณาให้ผู้รับฝาก (เช่น รปภ. หรือเจ้าหน้าที่) หรือตัวคุณเองตรวจสอบหน้าจอการยืนยันการมารับของคืน ของผู้มารับ ระบบจะบันทึกเบอร์มือถือของผู้มารับไว้ทุกครั้ง",
+            [
+              {
+                text: "รับทราบ",
+                onPress: () => {
+                  resetForm();
+                  router.replace({
+                    pathname: "/(tabs)",
+                    params: { fromTab: "found" },
+                  });
+                },
+              },
+            ],
+          );
+        } else {
+          Alert.alert("บันทึกสำเร็จ", "โพสต์ของคุณถูกบันทึกแล้ว");
+          resetForm();
+          router.replace({
+            pathname: "/(tabs)",
+            params: { fromTab: "lost" },
+          });
+        }
+      } // ← ปิด else (isEdit)
     } catch (e) {
       console.log("ERROR:", e);
       Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้");
@@ -587,7 +607,6 @@ export default function PostForm() {
       setUploading(false);
     }
   };
-
   // ── render ───────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFAF5" }}>

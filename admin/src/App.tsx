@@ -1,34 +1,32 @@
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import {
-  FileText,
-  Flag,
-  LayoutDashboard,
-  Users
-} from "lucide-react";
-import { useEffect, useState } from 'react';
-import './App.css';
-import logo from './assets/logo_sutfindback.png';
-import { auth, db } from './firebase';
-import LoginPage from './login';
-import DashboardPage from './pages/dashboard';
-import PostManagementPage from './pages/posts';
-import ReportsPage from './pages/reports';
-import UsersPage from './pages/users';
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { FileText, Flag, LayoutDashboard, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import "./App.css";
+import logo from "./assets/logo_sutfindback.png";
+import AdminInboxFAB from "./components/AdminInboxFAB";
+import { auth, db } from "./firebase";
+import LoginPage from "./login";
+import DashboardPage from "./pages/dashboard";
+import PostManagementPage from "./pages/posts";
+import ReportsPage from "./pages/reports";
+import UsersPage from "./pages/users";
+
 // ─────────────────────────────────────
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState("dashboard");
+  const [focusPostId, setFocusPostId] = useState("");
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async user => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setAuthed(false);
         return;
       }
 
-      const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+      const adminDoc = await getDoc(doc(db, "admins", user.uid));
       setAuthed(adminDoc.exists());
     });
 
@@ -51,7 +49,6 @@ export default function App() {
 
   return (
     <div className="admin">
-
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="logo">
@@ -60,29 +57,29 @@ export default function App() {
 
         <nav className="nav">
           <button
-            className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActivePage('dashboard')}
+            className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
+            onClick={() => setActivePage("dashboard")}
           >
             <LayoutDashboard size={18} /> Dashboard
           </button>
 
           <button
-            className={`nav-item ${activePage === 'posts' ? 'active' : ''}`}
-            onClick={() => setActivePage('posts')}
+            className={`nav-item ${activePage === "posts" ? "active" : ""}`}
+            onClick={() => setActivePage("posts")}
           >
             <FileText size={18} /> Post Management
           </button>
 
           <button
-            className={`nav-item ${activePage === 'reports' ? 'active' : ''}`}
-            onClick={() => setActivePage('reports')}
+            className={`nav-item ${activePage === "reports" ? "active" : ""}`}
+            onClick={() => setActivePage("reports")}
           >
             <Flag size={18} /> Reports
           </button>
 
           <button
-            className={`nav-item ${activePage === 'users' ? 'active' : ''}`}
-            onClick={() => setActivePage('users')}
+            className={`nav-item ${activePage === "users" ? "active" : ""}`}
+            onClick={() => setActivePage("users")}
           >
             <Users size={18} /> User Management
           </button>
@@ -95,13 +92,19 @@ export default function App() {
 
       {/* MAIN CONTENT */}
       <main className="main">
-
-        {activePage === 'dashboard' && <DashboardPage />}
-        {activePage === 'posts' && <PostManagementPage />}
-        {activePage === 'reports' && <ReportsPage />}
-        {activePage === 'users' && <UsersPage />}
-
+        {activePage === "dashboard" && <DashboardPage />}
+        {activePage === "posts" && (
+          <PostManagementPage focusPostId={focusPostId} />
+        )}
+        {activePage === "reports" && <ReportsPage />}
+        {activePage === "users" && <UsersPage />}
       </main>
+      <AdminInboxFAB
+        onOpenPost={(postId) => {
+          setFocusPostId(postId);
+          setActivePage("posts");
+        }}
+      />
     </div>
   );
 }

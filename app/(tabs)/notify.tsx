@@ -85,7 +85,18 @@ export default function NotifyScreen() {
 
       if (!item.postId) return;
       const postSnap = await getDoc(doc(db, "posts", item.postId));
-      if (!postSnap.exists() || postSnap.data()?.status === "rejected") {
+      if (!postSnap.exists()) {
+        Alert.alert("ไม่พบโพสต์", "โพสต์นี้ถูกลบไปแล้ว", [
+          { text: "ตกลง", style: "cancel" },
+        ]);
+        return;
+      }
+
+      // ถ้าถูกปิดกั้น และไม่ใช่เจ้าของโพสต์ → บล็อก
+      if (
+        postSnap.data()?.status === "rejected" &&
+        item.type !== "post_rejected_by_admin"
+      ) {
         Alert.alert("ไม่พบโพสต์", "โพสต์นี้ถูกลบไปแล้ว", [
           { text: "ตกลง", style: "cancel" },
         ]);
@@ -156,10 +167,11 @@ export default function NotifyScreen() {
               delayLongPress={400}
             >
               {/* ✅ รูปโพสต์ (ซ้าย) */}
-              {item.type === "report_reviewed" ? (
+              {item.type === "report_reviewed" ||
+              item.type === "post_rejected_by_admin" ? (
                 // ✅ report → แสดงธงเสมอ ไม่ว่าจะมีรูปหรือไม่
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="flag" size={28} color="#ff6a00" />
+                  <Ionicons name="flag" size={28} color="#ada9a9" />
                 </View>
               ) : item.itemImage?.trim() ? (
                 <Image

@@ -106,19 +106,31 @@ const toDate = (val: Timestamp | string | null | undefined): Date => {
 };
 
 // ── Main Component ─────────────────────────────────────────────────────────
-export default function PostManagementPage() {
+export default function PostManagementPage({
+  focusPostId = "",
+}: {
+  focusPostId?: string;
+}) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
 
-  // detail modal
+  useEffect(() => {
+    if (!focusPostId) return;
+
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setSearch(focusPostId);
+  }, [focusPostId]);
+
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [ownerInfo, setOwnerInfo] = useState<UserInfo | null>(null);
   const [postLoading, setPostLoading] = useState(false);
@@ -128,10 +140,45 @@ export default function PostManagementPage() {
     type: "success" | "error";
   } | null>(null);
 
-  // confirm delete
   const [confirmDelete, setConfirmDelete] = useState<Post | null>(null);
+  const [claimerInfo, setClaimerInfo] = useState<{
+    username?: string;
+    phone?: string;
+  } | null>(null);
 
-  // ── Firestore listener ──
+  const closeDetail = () => {
+    setSelectedPost(null);
+    setOwnerInfo(null);
+  };
+
+  const openDetail = async (post: Post) => {
+    setPostLoading(true);
+    setOwnerInfo(null);
+    setClaimerInfo(null);
+
+    try {
+      if (post.userId) {
+        const snap = await getDoc(doc(db, "users", post.userId));
+        if (snap.exists()) setOwnerInfo(snap.data() as UserInfo);
+      }
+
+      if (post.claimedBy) {
+        const snap = await getDoc(doc(db, "users", post.claimedBy));
+        if (snap.exists()) {
+          setClaimerInfo({
+            username: snap.data().username,
+            phone: snap.data().phone,
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    setSelectedPost(post);
+    setPostLoading(false);
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, "posts"),
@@ -149,46 +196,9 @@ export default function PostManagementPage() {
         setLoading(false);
       },
     );
+
     return () => unsub();
   }, []);
-
-  // ── Open detail modal ──
-  const [claimerInfo, setClaimerInfo] = useState<{
-    username?: string;
-    phone?: string;
-  } | null>(null);
-
-  // เรียกตอน openDetail
-  const openDetail = async (post: Post) => {
-    setPostLoading(true); // ✅ loading ก่อน
-    setOwnerInfo(null);
-    setClaimerInfo(null);
-
-    try {
-      if (post.userId) {
-        const snap = await getDoc(doc(db, "users", post.userId));
-        if (snap.exists()) setOwnerInfo(snap.data() as UserInfo);
-      }
-      if (post.claimedBy) {
-        const snap = await getDoc(doc(db, "users", post.claimedBy));
-        if (snap.exists())
-          setClaimerInfo({
-            username: snap.data().username,
-            phone: snap.data().phone,
-          });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    setSelectedPost(post); // ✅ เปิด modal หลัง fetch เสร็จ
-    setPostLoading(false);
-  };
-
-  const closeDetail = () => {
-    setSelectedPost(null);
-    setOwnerInfo(null);
-  };
 
   // ── Toast ──
   const showToast = (msg: string, type: "success" | "error") => {
@@ -279,10 +289,29 @@ export default function PostManagementPage() {
         <div
           style={{
             ...s.toast,
-            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+
+            backgroundColor:
+              toast.type === "success"
+                ? "rgba(34,197,94,0.04)"
+                : "rgba(239,68,68,0.04)",
+
+            border:
+              toast.type === "success"
+                ? "1px solid rgba(34,197,94,0.22)"
+                : "1px solid rgba(239,68,68,0.22)",
+
+            color: toast.type === "success" ? "#16a34a" : "#dc2626",
+
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+
+            boxShadow:
+              toast.type === "success"
+                ? "0 8px 24px rgba(34,197,94,0.10)"
+                : "0 8px 24px rgba(239,68,68,0.10)",
           }}
         >
-          {toast.type === "success" ? "SUCCESS" : "ERROR"} {toast.msg}
+          {toast.msg}
         </div>
       )}
 
@@ -376,19 +405,43 @@ export default function PostManagementPage() {
               </option>
             ))}
           </select>
-          <input
-            type="date"
-            style={s.dateInput}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input");
+              input?.showPicker();
+            }}
+          >
+            <input
+              type="date"
+              style={{ ...s.dateInput, paddingLeft: 10, cursor: "pointer" }}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
           <span style={{ color: "#a0856a", fontSize: 13 }}>–</span>
-          <input
-            type="date"
-            style={s.dateInput}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
+          <div
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input");
+              input?.showPicker();
+            }}
+          >
+            <input
+              type="date"
+              style={{ ...s.dateInput, paddingLeft: 10, cursor: "pointer" }}
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
           {(statusFilter !== "all" ||
             typeFilter !== "all" ||
             dateFrom ||
@@ -762,7 +815,7 @@ export default function PostManagementPage() {
                         fontWeight: 700,
                         cursor:
                           selectedPost.status === st ? "default" : "pointer",
-                        fontFamily: "'Sarabun', sans-serif",
+                        fontFamily: "'Noto Sans Thai', sans-serif",
                         opacity: selectedPost.status === st ? 1 : 0.85,
                         boxShadow:
                           selectedPost.status === st
@@ -825,7 +878,7 @@ export default function PostManagementPage() {
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: "pointer",
-                  fontFamily: "'Sarabun', sans-serif",
+                  fontFamily: "'Noto Sans Thai', sans-serif",
                 }}
                 onClick={() => setConfirmDelete(null)}
               >
@@ -842,7 +895,7 @@ export default function PostManagementPage() {
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: "pointer",
-                  fontFamily: "'Sarabun', sans-serif",
+                  fontFamily: "'Noto Sans Thai', sans-serif",
                 }}
                 onClick={() => handleDelete(confirmDelete)}
                 disabled={actionLoading}
@@ -938,7 +991,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 20,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   header: {
     display: "flex",
@@ -959,6 +1012,7 @@ const s: Record<string, React.CSSProperties> = {
 
   subtitle: {
     fontSize: 13,
+    fontFamily: "'Kanit', sans-serif",
     color: "#a0856a",
     marginTop: 6,
     marginLeft: 0,
@@ -1004,7 +1058,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   tabActive: {
     background: "#F97316",
@@ -1041,7 +1095,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     color: "#5A4633",
     fontSize: 13,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     width: 220,
   },
   select: {
@@ -1051,7 +1105,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     color: "#5A4633",
     fontSize: 13,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     cursor: "pointer",
   },
   dateInput: {
@@ -1061,7 +1115,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     color: "#5A4633",
     fontSize: 13,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   clearBtn: {
     padding: "7px 14px",
@@ -1072,7 +1126,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   tableWrap: {
     background: "rgba(255,255,255,0.75)",
@@ -1108,6 +1162,8 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 700,
     whiteSpace: "nowrap",
+    alignContent: "center",
+    justifyContent: "center",
   },
   statusBadge: {
     padding: "4px 12px",
@@ -1171,7 +1227,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   modalHeader: {
     display: "flex",
@@ -1184,7 +1240,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: "#5A4633",
     margin: 0,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   closeBtn: {
     background: "none",
@@ -1223,7 +1279,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     marginTop: 4,
   },
   toast: {
@@ -1238,7 +1294,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     zIndex: 2000,
     boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     whiteSpace: "nowrap",
   },
 };

@@ -294,7 +294,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u, i) => {
+              {filtered.map((u) => {
                 const rc = reportCountByUser[u.id] ?? 0;
                 const pc = posts.filter((p) => p.userId === u.id).length;
                 return (
@@ -485,7 +485,7 @@ export default function UsersPage() {
                   }}
                   onClick={() => setConfirmBan(true)}
                 >
-                  {selectedUser.banned ? "ปลดแบน User นี้" : "🚫แบน User นี้"}
+                  {selectedUser.banned ? "ปลดแบน User นี้" : "แบน User นี้"}
                 </button>
               ) : (
                 <div style={s.confirmBox}>
@@ -581,7 +581,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 20,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   header: {
     display: "flex",
@@ -598,6 +598,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   subtitle: {
     fontSize: 13,
+    fontFamily: "'Kanit', sans-serif",
     color: "#a0856a",
     marginTop: 6,
     marginLeft: 0,
@@ -644,7 +645,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#5A4633",
     background: "transparent",
     flex: 1,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     padding: 0,
     height: "24px",
     display: "flex",
@@ -669,7 +670,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   tabActive: {
     background: "#F97316",
@@ -753,7 +754,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   empty: {
     padding: "60px 20px",
@@ -784,7 +785,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     boxShadow: "0 20px 60px rgba(90,70,51,0.22)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     textAlign: "left" as const,
   },
   modalHeader: {
@@ -798,7 +799,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: "#5A4633",
     margin: 0,
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
   closeBtn: {
     background: "none",
@@ -883,7 +884,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     marginBottom: 4,
   },
   confirmBox: {
@@ -910,7 +911,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 700,
     cursor: "pointer",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
   },
 
   // Toast
@@ -926,7 +927,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     zIndex: 2000,
     boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
-    fontFamily: "'Sarabun', sans-serif",
+    fontFamily: "'Noto Sans Thai', sans-serif",
     whiteSpace: "nowrap" as const,
   },
 };
