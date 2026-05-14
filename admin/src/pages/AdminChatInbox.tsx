@@ -303,8 +303,6 @@ export default function AdminChatInbox({
         }
       `}</style>
       <div style={inbox.list} className="custom-scroll">
-        {/* ลบ <div style={inbox.listHeader}> ออกไปเลย เพราะย้ายขึ้นไปข้างบนแล้ว */}
-
         {rooms.length === 0 ? (
           <div style={inbox.empty}>ยังไม่มีข้อความ</div>
         ) : (
@@ -748,6 +746,7 @@ const inbox: Record<string, React.CSSProperties> = {
     padding: "16px 20px",
     display: "flex",
     flexDirection: "column",
+    textAlign: "left",
   },
   bubble: {
     maxWidth: 300,

@@ -116,7 +116,10 @@ export default function PostCard(props: PostCardProps) {
               resizeMode="cover"
             />
             <StatusChip
-              status={(currentStatus as "waiting" | "claimed") || "waiting"}
+              status={
+                (currentStatus as "waiting" | "claimed" | "rejected") ||
+                "waiting"
+              }
               isFound={type === "found"}
             />
           </View>
@@ -129,7 +132,10 @@ export default function PostCard(props: PostCardProps) {
             />
             <Text style={styles.noImageText}>ไม่มีรูปภาพ</Text>
             <StatusChip
-              status={(currentStatus as "waiting" | "claimed") || "waiting"}
+              status={
+                (currentStatus as "waiting" | "claimed" | "rejected") ||
+                "waiting"
+              }
               isFound={type === "found"}
             />
           </View>
@@ -174,13 +180,13 @@ function StatusChip({
   status,
   isFound,
 }: {
-  status: "waiting" | "claimed";
+  status: "waiting" | "claimed" | "rejected";
   isFound: boolean;
 }) {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (status === "claimed") return;
+    if (status === "claimed" || status === "rejected") return;
     const blink = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -198,6 +204,16 @@ function StatusChip({
     blink.start();
     return () => blink.stop();
   }, [status]);
+
+  if (status === "rejected") {
+    return (
+      <View style={[chipStyles.badge, { backgroundColor: "#f3f4f6" }]}>
+        <Text style={[chipStyles.statusText, { color: "#6b7280" }]}>
+          ● โพสต์ถูกปิดกั้น
+        </Text>
+      </View>
+    );
+  }
 
   if (status === "claimed") {
     return (
