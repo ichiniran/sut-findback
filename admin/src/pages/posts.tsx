@@ -107,9 +107,9 @@ const toDate = (val: Timestamp | string | null | undefined): Date => {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function PostManagementPage({
-  focusPostId = "",
+  focusPostId = null,
 }: {
-  focusPostId?: string;
+  focusPostId?: { id: string; ts: number } | null;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,13 +122,21 @@ export default function PostManagementPage({
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!focusPostId) return;
+    if (!focusPostId?.id) {
+      // null → ล้าง filter ทั้งหมด
+      setStatusFilter("all");
+      setTypeFilter("all");
+      setDateFrom("");
+      setDateTo("");
+      setSearch("");
+      return;
+    }
 
     setStatusFilter("all");
     setTypeFilter("all");
     setDateFrom("");
     setDateTo("");
-    setSearch(focusPostId);
+    setSearch(focusPostId.id);
   }, [focusPostId]);
 
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);

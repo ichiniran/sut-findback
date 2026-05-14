@@ -17,7 +17,11 @@ import UsersPage from "./pages/users";
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [activePage, setActivePage] = useState("dashboard");
-  const [focusPostId, setFocusPostId] = useState("");
+  // const [focusPostId, setFocusPostId] = useState("");
+  const [focusPostId, setFocusPostId] = useState<{
+    id: string;
+    ts: number;
+  } | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -58,28 +62,40 @@ export default function App() {
         <nav className="nav">
           <button
             className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
-            onClick={() => setActivePage("dashboard")}
+            onClick={() => {
+              setFocusPostId(null); // ← เพิ่ม
+              setActivePage("dashboard");
+            }}
           >
             <LayoutDashboard size={18} /> Dashboard
           </button>
 
           <button
             className={`nav-item ${activePage === "posts" ? "active" : ""}`}
-            onClick={() => setActivePage("posts")}
+            onClick={() => {
+              setFocusPostId(null); // ← เพิ่ม
+              setActivePage("posts");
+            }}
           >
             <FileText size={18} /> Post Management
           </button>
 
           <button
             className={`nav-item ${activePage === "reports" ? "active" : ""}`}
-            onClick={() => setActivePage("reports")}
+            onClick={() => {
+              setFocusPostId(null); // ← เพิ่ม
+              setActivePage("reports");
+            }}
           >
             <Flag size={18} /> Reports
           </button>
 
           <button
             className={`nav-item ${activePage === "users" ? "active" : ""}`}
-            onClick={() => setActivePage("users")}
+            onClick={() => {
+              setFocusPostId(null); // ← เพิ่ม
+              setActivePage("users");
+            }}
           >
             <Users size={18} /> User Management
           </button>
@@ -94,14 +110,14 @@ export default function App() {
       <main className="main">
         {activePage === "dashboard" && <DashboardPage />}
         {activePage === "posts" && (
-          <PostManagementPage focusPostId={focusPostId} />
+          <PostManagementPage key={activePage} focusPostId={focusPostId} />
         )}
         {activePage === "reports" && <ReportsPage />}
         {activePage === "users" && <UsersPage />}
       </main>
       <AdminInboxFAB
         onOpenPost={(postId) => {
-          setFocusPostId(postId);
+          setFocusPostId({ id: postId, ts: Date.now() }); // ts ทำให้ค่าเปลี่ยนทุกครั้ง
           setActivePage("posts");
         }}
       />

@@ -193,7 +193,21 @@ export default function UsersPage() {
         <div
           style={{
             ...s.toast,
-            background: toast.type === "success" ? "#22c55e" : "#ef4444",
+            backgroundColor:
+              toast.type === "success"
+                ? "rgba(34,197,94,0.04)"
+                : "rgba(239,68,68,0.04)",
+            border:
+              toast.type === "success"
+                ? "1px solid rgba(34,197,94,0.22)"
+                : "1px solid rgba(239,68,68,0.22)",
+            color: toast.type === "success" ? "#16a34a" : "#dc2626",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            boxShadow:
+              toast.type === "success"
+                ? "0 8px 24px rgba(34,197,94,0.10)"
+                : "0 8px 24px rgba(239,68,68,0.10)",
           }}
         >
           {toast.msg}
@@ -915,6 +929,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   // Toast
+  // ── Styles ─────────────────────────────────────────────────────────────────
   toast: {
     position: "fixed" as const,
     bottom: 28,
@@ -922,7 +937,6 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translateX(-50%)",
     padding: "12px 24px",
     borderRadius: 14,
-    color: "#fff",
     fontWeight: 700,
     fontSize: 14,
     zIndex: 2000,

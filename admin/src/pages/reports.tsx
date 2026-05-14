@@ -246,6 +246,7 @@ export default function ReportsPage() {
     if (!post?.userId) return;
     await addDoc(collection(db, "users", post.userId, "notifications"), {
       type: "post_rejected_by_admin",
+      postType: post.type || "found",
       title: "โพสต์ของคุณถูกปิดกั้น",
       desc: `โพสต์ของคุณถูกปิดกั้น เนื่องจากมีผู้รายงานว่า "${report.reason}"`,
       postId: report.postId,
@@ -282,7 +283,7 @@ export default function ReportsPage() {
         notified: true,
       });
 
-      // ✅ ส่ง notification
+      //  ส่ง notification
       await sendReviewedNotification(selectedReport, selectedPost);
 
       showToast("ตรวจสอบแล้ว ไม่มีการลบโพสต์", "success");
@@ -307,7 +308,7 @@ export default function ReportsPage() {
         notified: true,
       });
 
-      // ✅ ส่ง notification
+      //  ส่ง notification
       await sendReviewedNotification(selectedReport, selectedPost);
       await sendOwnerNotification(selectedReport, selectedPost);
       showToast("ลบโพสต์เรียบร้อย และอัปเดตสถานะ report แล้ว", "success");

@@ -106,7 +106,7 @@ export default function NotifyScreen() {
         pathname: "/post-detail",
         params: {
           postId: item.postId,
-          type: item.type || "found",
+          type: item.postType || item.type || "found",
           title: item.postTitle || "",
           detail: item.detail || "",
           location: item.location || "",
