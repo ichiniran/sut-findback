@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/tabs";
 import { Tabs } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -42,7 +42,7 @@ const tabMeta: Record<
   me: { label: "Me", icon: "person-outline", activeIcon: "person" },
 };
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   // 🔴 BADGE STATE
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [hasUnreadNotify, setHasUnreadNotify] = useState(false);
@@ -100,19 +100,19 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               : "#aaaaaa";
 
           const onPress = () => {
-            const event = navigation.emit({
+            const event = emitter.emit({
               type: "tabPress",
               target: route.key,
               canPreventDefault: true,
             });
 
             if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+              navigateToTab(route.key);
             }
           };
 
           const onLongPress = () => {
-            navigation.emit({
+            emitter.emit({
               type: "tabLongPress",
               target: route.key,
             });

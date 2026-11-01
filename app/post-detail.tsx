@@ -389,7 +389,7 @@ export default function PostDetail() {
   };
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
+      <StatusBar barStyle="dark-content" />
 
       {/* Top Nav */}
       <View style={styles.topNav}>

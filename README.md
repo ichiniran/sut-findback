@@ -25,6 +25,41 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Deploy the Expo web app to Firebase Hosting
+
+This project uses Expo SDK 58. To open it in Expo Go on a phone, stop any
+previous Metro server and run:
+
+```bash
+npx expo start --go --clear
+```
+
+Connect the phone and computer to the same Wi-Fi network, then scan the QR
+code (use Camera on iPhone). If the local network is inaccessible, try
+`npx expo start --go --tunnel --clear`.
+
+The existing phone OTP flow still uses the deprecated
+`expo-firebase-recaptcha` package. Expo Doctor reports this package and its
+nested older `expo-constants`; phone OTP needs separate device validation.
+
+Firebase Hosting serves the Expo static export in `dist`, not the `admin` app.
+
+Build locally with:
+
+```bash
+npm run build:web
+```
+
+Deploy to the `sut-find-back` project with:
+
+```bash
+npx -y firebase-tools@latest deploy --only hosting
+```
+
+Hosting automatically runs the web build before uploading. Use `--only hosting`
+to avoid deploying the separate Functions configuration. On Windows PowerShell,
+use `npm.cmd` and `npx.cmd` if script execution policy blocks `npm` or `npx`.
+
 ## Get a fresh project
 
 When you're ready, run:

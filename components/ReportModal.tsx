@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backdropLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.45)",
   },
   sheet: {

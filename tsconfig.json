@@ -8,6 +8,7 @@
       ]
     }
   },
+  "exclude": ["admin"],
   "include": [
     "**/*.ts",
     "**/*.tsx",
