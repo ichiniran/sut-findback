@@ -1,5 +1,7 @@
 ﻿# SUT Findback
 
+🌐 [English](README.md) | [ภาษาไทย](README.th.md)
+
 **A campus lost-and-found application for Suranaree University of Technology.**
 
 SUT Findback gives students and staff a shared place to report lost belongings, publish found items, and arrange returns. It brings searchable posts, location information, and real-time conversations together instead of spreading announcements across social media groups.
