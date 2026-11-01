@@ -12,10 +12,6 @@ SUT Findback gives students and staff a shared place to report lost belongings, 
 
 **Project type:** Collaborative course project
 
-## My Contribution
-
-I was responsible for the entire mobile application, including its screens, navigation, user workflows, and integration with Firebase, Google Maps, and Cloudinary. Other team members contributed to the project, including the administrator web application.
-
 ## Features
 
 ### Mobile Application
